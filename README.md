@@ -1,97 +1,148 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# SpendWhere
 
-# Getting Started
+手机行为时间线统计 App —— 记录「注意力花在哪里」，而非简单的屏幕使用时长。
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 产品定位
 
-## Step 1: Start Metro
+SpendWhere 的核心资产是**行为事件流**（Event Stream），而非聚合统计表：
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+```
+08:10 unlock
+08:11 微信
+08:13 支付宝
+08:14 screen_off
+```
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+所有统计、可视化、AI 分析都从事件流派生，底层采集层只负责忠实记录。
 
-```sh
-# Using npm
+## 技术架构
+
+```
+┌─────────────────────────────────────┐
+│  Layer 3: 展示层 (React Native)      │
+│  概览 / 洞察 / 时间线 / 按小时 / 设置 │
+├─────────────────────────────────────┤
+│  Layer 2: 分析层 (TypeScript)        │
+│  会话切分 / 路径分析 / 模式 / 洞察引擎  │
+├─────────────────────────────────────┤
+│  Layer 1: 采集层 (Android Native)    │
+│  解锁广播 / UsageStats / MediaSession │
+├─────────────────────────────────────┤
+│  存储: SQLite (op-sqlite)           │
+│  behavior_events 事件表              │
+└─────────────────────────────────────┘
+```
+
+## 技术栈
+
+- **React Native 0.86** + TypeScript
+- **React Navigation** — 底部 Tab 导航
+- **op-sqlite** — 本地事件存储
+- **Android Native Module** — 行为采集（`BehaviorMonitor`）
+
+## 项目结构
+
+```
+src/
+├── types/          # 事件与会话类型定义
+├── constants/      # 阈值与配置常量
+├── db/             # SQLite schema 与事件仓库
+├── native/         # 原生模块 TypeScript 桥接
+├── services/       # 监控服务封装
+├── analysis/       # 会话切分与统计派生
+├── components/     # UI 组件
+├── screens/        # 页面
+├── navigation/     # 导航配置
+└── theme/          # 主题色与间距
+
+android/.../monitor/
+├── BehaviorMonitorModule.kt              # RN 桥接
+├── BehaviorMonitorService.kt             # 前台采集服务
+├── MediaSessionWatcher.kt                # 后台播客/音乐检测
+├── UsageStatsReconciler.kt               # 系统数据对账补全
+├── BootReceiver.kt                       # 开机自启恢复监控
+├── MonitorPreferences.kt                 # 监控开关持久化
+├── BatteryOptimizationHelper.kt        # 电池优化与 ROM 引导
+├── SpendWhereNotificationListenerService.kt
+├── BehaviorMonitorPackage.kt
+└── EventStore.kt
+```
+
+## 快速开始
+
+### 环境要求
+
+- Node.js >= 22
+- Android SDK（minSdk 24）
+- JDK 17+
+
+### 安装与运行
+
+```bash
+npm install
 npm start
-
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+### 首次使用
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+1. 打开 App → **设置** 页
+2. 点击 **申请基础权限** → 授予「使用情况访问权限」和通知权限
+3. 点击 **开启后台播客检测** → 在系统设置中开启 SpendWhere 的「通知使用权」
+4. 点击 **开始监控** → 通知栏出现常驻通知
+5. 返回 **概览** / **洞察** 查看数据
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+### AI 总结（可选）
 
-```sh
-bundle install
-```
+1. **设置** → **AI 总结配置** → 填入 API Key
+2. 支持 OpenAI 及兼容接口（DeepSeek、通义等），可自定义 API 地址和模型
+3. **洞察** 页点击「生成 AI 总结」获取日报/周报
+4. 生成结果缓存在本机，可一键分享
 
-Then, and every time you update your native dependencies, run:
+## 采集事件类型
 
-```sh
-bundle exec pod install
-```
+| 事件 | 来源 | 说明 |
+|------|------|------|
+| `unlock` | BroadcastReceiver | 用户解锁手机 |
+| `screen_off` | BroadcastReceiver | 屏幕关闭/锁屏 |
+| `app_foreground` | UsageStatsManager | 应用切到前台 |
+| `app_background` | UsageStatsManager | 应用切到后台 |
+| `media_start` | MediaSession | 开始播放音频 |
+| `media_pause` | MediaSession | 暂停播放 |
+| `media_stop` | MediaSession | 停止播放 |
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+支持小宇宙、网易云、QQ 音乐等注册了 MediaSession 的播放器。事件 metadata 包含 `title`、`artist`、`album`。
 
-```sh
-# Using npm
-npm run ios
+## 开发路线图
 
-# OR using Yarn
-yarn ios
-```
+- [x] RN 项目初始化
+- [x] 事件流数据模型与 SQLite 存储
+- [x] Android 原生采集模块（解锁 + App 前台）
+- [x] 基础 UI（概览 / 时间线 / 按小时 / 设置）
+- [x] MediaSession 后台播放检测
+- [x] 开机自启与事件对账补偿
+- [x] app_background 采集与事件去重
+- [x] 历史日期切换与解锁热力图
+- [x] 按小时 App 图标视图
+- [x] 首次使用 Onboarding 引导
+- [x] App 跳转路径分析
+- [x] 行为模式识别与会话目标分析
+- [x] 规则引擎行为洞察（本地，无需联网）
+- [x] AI 日报 / 周报总结（OpenAI 兼容接口）
+- [x] 总结分享与本地缓存
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+## 权限说明
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+| 权限 | 用途 |
+|------|------|
+| `PACKAGE_USAGE_STATS` | 获取应用前台切换事件 |
+| `FOREGROUND_SERVICE` | 后台持续采集解锁/锁屏事件 |
+| `POST_NOTIFICATIONS` | 前台服务通知（Android 13+） |
+| 通知使用权 | 获取 MediaSession，检测后台播客/音乐（不读取通知内容） |
+| 电池优化豁免 | 降低后台被杀概率，配合开机自启 |
 
-## Step 3: Modify your app
+所有行为数据仅存储在本机。AI 总结仅在用户主动触发时，将结构化行为数据发送至配置的 API 地址，不会自动上传。
 
-Now that you have successfully run the app, let's make changes!
+## License
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Private

@@ -1,44 +1,113 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
+ * SpendWhere - 手机行为时间线统计
  * @format
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { DateProvider } from './src/context/DateContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { isOnboardingCompleted, setOnboardingCompleted } from './src/db';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { ensureDemoDataInDev } from './src/services/demoDataService';
+import { scheduleBackgroundSync } from './src/services/syncCoordinator';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+function AppContent() {
+  const { colors, isDark } = useTheme();
+  const [booting, setBooting] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const bootstrap = useCallback(async () => {
+    await ensureDemoDataInDev();
+
+    let completed = await isOnboardingCompleted();
+    if (__DEV__ && !completed) {
+      await setOnboardingCompleted(true);
+      completed = true;
+    }
+
+    setShowOnboarding(!completed);
+    scheduleBackgroundSync();
+  }, []);
+
+  useEffect(() => {
+    bootstrap()
+      .catch(console.error)
+      .finally(() => setBooting(false));
+  }, [bootstrap]);
+
+  const handleOnboardingComplete = useCallback(() => {
+    setShowOnboarding(false);
+    scheduleBackgroundSync();
+  }, []);
+
+  const navTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+      background: colors.background,
+      card: colors.surface,
+      text: colors.textPrimary,
+      border: colors.border,
+      primary: colors.accent,
+    },
+  };
+
+  if (booting) {
+    return (
+      <View style={[styles.boot, { backgroundColor: colors.background }]}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.background}
+        />
+        <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.background}
+        />
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
+      </>
+    );
+  }
 
   return (
+    <DateProvider>
+      <NavigationContainer theme={navTheme}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.background}
+        />
+        <RootNavigator />
+      </NavigationContainer>
+    </DateProvider>
+  );
+}
+
+function App() {
+  return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
+  boot: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
