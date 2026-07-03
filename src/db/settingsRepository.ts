@@ -3,6 +3,7 @@ import { CREATE_SETTINGS_TABLE, DB_NAME, SETTINGS_TABLE } from './schema';
 
 const ONBOARDING_KEY = 'onboarding_completed';
 const THEME_KEY = 'theme_mode';
+const MONITOR_BANNER_DISMISS_KEY = 'monitor_banner_dismiss';
 const AI_API_KEY = 'ai_api_key';
 const AI_BASE_URL = 'ai_base_url';
 const AI_MODEL = 'ai_model';
@@ -53,6 +54,18 @@ export async function isOnboardingCompleted(): Promise<boolean> {
 
 export async function setOnboardingCompleted(completed: boolean): Promise<void> {
   await setSetting(ONBOARDING_KEY, completed ? 'true' : 'false');
+}
+
+export async function getMonitorBannerDismissKey(): Promise<string | null> {
+  return getSetting(MONITOR_BANNER_DISMISS_KEY);
+}
+
+export async function setMonitorBannerDismissKey(key: string | null): Promise<void> {
+  if (key === null) {
+    await setSetting(MONITOR_BANNER_DISMISS_KEY, '');
+    return;
+  }
+  await setSetting(MONITOR_BANNER_DISMISS_KEY, key);
 }
 
 export interface AiConfig {

@@ -43,6 +43,7 @@ class BehaviorMonitorService : Service() {
     postureSampler = PostureSampler(applicationContext)
     handler.post(usagePollRunnable)
     MediaSessionWatcher.start(applicationContext)
+    AudioPlaybackWatcher.start(applicationContext)
     ActivityRecognitionWatcher.start(applicationContext)
     isRunning = true
   }
@@ -68,6 +69,7 @@ class BehaviorMonitorService : Service() {
     postureSampler?.stopSampling()
     postureSampler = null
     MediaSessionWatcher.stop()
+    AudioPlaybackWatcher.stop()
     ActivityRecognitionWatcher.stop(applicationContext)
     isRunning = false
     super.onDestroy()

@@ -8,9 +8,12 @@ export interface ThemeColors {
   surfaceElevated: string;
   border: string;
   borderLight: string;
+  ghostBorder: string;
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
+  statInk: string;
+  labelSecondary: string;
   accent: string;
   accentSoft: string;
   onAccent: string;
@@ -18,6 +21,7 @@ export interface ThemeColors {
   warning: string;
   danger: string;
   unlock: string;
+  morandiUnlock: string;
   screenOff: string;
   appForeground: string;
   media: string;

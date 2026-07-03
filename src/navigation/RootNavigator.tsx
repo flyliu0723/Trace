@@ -6,7 +6,6 @@ import { useTheme } from '../context/ThemeContext';
 import { HomeScreen } from '../screens/HomeScreen';
 import { TimelineScreen } from '../screens/TimelineScreen';
 import { InsightsScreen } from '../screens/InsightsScreen';
-import { SettingsNavigator } from './SettingsNavigator';
 import { spacing } from '../theme';
 import type { RootTabParamList } from './types';
 
@@ -16,7 +15,6 @@ const TAB_LABELS: Record<keyof RootTabParamList, string> = {
   Home: '轨迹',
   Insights: '洞察',
   Timeline: '时间线',
-  Settings: '设置',
 };
 
 const TAB_ICONS: Record<
@@ -26,7 +24,6 @@ const TAB_ICONS: Record<
   Home: { active: 'pulse', inactive: 'pulse-outline' },
   Insights: { active: 'bulb', inactive: 'bulb-outline' },
   Timeline: { active: 'grid', inactive: 'grid-outline' },
-  Settings: { active: 'settings', inactive: 'settings-outline' },
 };
 
 export function RootNavigator() {
@@ -68,7 +65,6 @@ export function RootNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Insights" component={InsightsScreen} />
       <Tab.Screen name="Timeline" component={TimelineScreen} />
-      <Tab.Screen name="Settings" component={SettingsNavigator} />
     </Tab.Navigator>
   );
 }

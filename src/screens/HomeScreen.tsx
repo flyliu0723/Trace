@@ -6,27 +6,41 @@ import {
   View,
 } from 'react-native';
 import { buildDailySummary, formatDuration } from '../analysis/sessionAnalyzer';
+import { analyzeContextMedia } from '../analysis/contextMediaAnalyzer';
 import { buildContributionCells } from '../analysis/contributionAnalyzer';
+import { ContextMediaCard } from '../components/ContextMediaCard';
 import { buildDailyUnlockCounts } from '../analysis/heatmapAnalyzer';
 import { ContributionHeatmap } from '../components/ContributionHeatmap';
 import { DateNavigator } from '../components/DateNavigator';
+import { MonitorBanner } from '../components/settings/MonitorBanner';
+import { SettingsGearButton } from '../components/settings/SettingsGearButton';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { StatCard } from '../components/StatCard';
+import { HomeMetricsGrid, StatCard } from '../components/StatCard';
 import { UnlockHeatmap } from '../components/UnlockHeatmap';
 import { useSelectedDate } from '../context/DateContext';
 import { useTheme } from '../context/ThemeContext';
 import { getEventsByDate, getEventsForDates } from '../db';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { useRootNavigation } from '../hooks/useRootNavigation';
 import { ensureSynced } from '../services/syncCoordinator';
+import { getMonitorStatus } from '../services/monitorService';
+import { useMonitorBanner } from '../hooks/useMonitorBanner';
+import { getMonitorHealth } from '../utils/monitorStatusUtils';
+import type { DailyContextMediaReport } from '../analysis/contextMediaAnalyzer';
+import type { MonitorStatus } from '../native/BehaviorMonitor';
 import type { DailySummary } from '../types/event';
 import { getRecentDateStrings, isToday } from '../utils/dateUtils';
 import { spacing } from '../theme';
 
+const HOME_HORIZONTAL = 20;
+
 export function HomeScreen() {
   const { colors } = useTheme();
-  const { selectedDate, setSelectedDate } = useSelectedDate();
+  const rootNavigation = useRootNavigation();
+  const { selectedDate, setSelectedDate, dataRevision } = useSelectedDate();
   const [summary, setSummary] = useState<DailySummary | null>(null);
+  const [monitorStatus, setMonitorStatus] = useState<MonitorStatus | null>(null);
   const [weekUnlockData, setWeekUnlockData] = useState<
     Array<{ date: string; count: number }>
   >([]);
@@ -34,26 +48,24 @@ export function HomeScreen() {
     ReturnType<typeof buildContributionCells>
   >([]);
   const [dayEvents, setDayEvents] = useState<Awaited<ReturnType<typeof getEventsByDate>>>([]);
+  const [contextMediaReport, setContextMediaReport] = useState<DailyContextMediaReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { visible: bannerVisible, message: bannerMessage, dismiss: dismissBanner } =
+    useMonitorBanner(monitorStatus);
 
   const styles = useThemedStyles(() => ({
     screen: {
       paddingHorizontal: 0,
     },
     content: {
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.xxl,
+      paddingHorizontal: HOME_HORIZONTAL,
+      paddingBottom: spacing.xxl + spacing.lg,
     },
     center: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    statsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.md,
     },
   }));
 
@@ -61,9 +73,14 @@ export function HomeScreen() {
     if (isToday(selectedDate)) {
       await ensureSynced({ force: options?.forceSync });
     }
-    const events = await getEventsByDate(selectedDate);
+    const [events, status] = await Promise.all([
+      getEventsByDate(selectedDate),
+      getMonitorStatus(),
+    ]);
+    setMonitorStatus(status);
     setDayEvents(events);
     setSummary(buildDailySummary(selectedDate, events));
+    setContextMediaReport(analyzeContextMedia(events));
 
     const weekDates = getRecentDateStrings(7);
     const monthDates = getRecentDateStrings(35);
@@ -78,7 +95,7 @@ export function HomeScreen() {
     }));
     setWeekUnlockData(buildDailyUnlockCounts(weekPairs));
     setContributionCells(buildContributionCells(monthPairs));
-  }, [selectedDate]);
+  }, [selectedDate, dataRevision]);
 
   useEffect(() => {
     setLoading(true);
@@ -114,19 +131,35 @@ export function HomeScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }>
-        <ScreenHeader title="轨迹" />
+        <ScreenHeader
+          title="轨迹"
+          trailing={<SettingsGearButton showBadge={getMonitorHealth(monitorStatus) !== 'ok'} />}
+        />
         <DateNavigator />
+
+        {bannerVisible && bannerMessage ? (
+          <MonitorBanner
+            message={bannerMessage}
+            onPress={() => rootNavigation.navigate('Settings')}
+            onDismiss={dismissBanner}
+          />
+        ) : null}
 
         <UnlockHeatmap events={dayEvents} weekData={weekUnlockData} />
 
-        <ContributionHeatmap cells={contributionCells} onDayPress={setSelectedDate} />
+        <ContributionHeatmap
+          cells={contributionCells}
+          onDayPress={setSelectedDate}
+          variant="ghost"
+        />
 
-        <View style={styles.statsGrid}>
+        <ContextMediaCard report={contextMediaReport} compact variant="ghost" />
+
+        <HomeMetricsGrid>
           <StatCard
-            label="解锁"
-            value={String(summary?.unlockCount ?? 0)}
-            accentColor={colors.unlock}
-            featured
+            label="亮屏"
+            value={formatDuration(summary?.activeInteractionMs ?? 0)}
+            accentColor={colors.accent}
           />
           <StatCard
             label="会话"
@@ -139,16 +172,11 @@ export function HomeScreen() {
             accentColor={colors.quickSession}
           />
           <StatCard
-            label="亮屏"
-            value={formatDuration(summary?.activeInteractionMs ?? 0)}
-            accentColor={colors.accent}
-          />
-          <StatCard
             label="后台"
             value={formatDuration(summary?.passiveMediaMs ?? 0)}
             accentColor={colors.media}
           />
-        </View>
+        </HomeMetricsGrid>
       </ScrollView>
     </ScreenContainer>
   );

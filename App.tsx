@@ -10,7 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DateProvider } from './src/context/DateContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { isOnboardingCompleted, setOnboardingCompleted } from './src/db';
-import { RootNavigator } from './src/navigation/RootNavigator';
+import { RootStackNavigator } from './src/navigation/RootStackNavigator';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ensureDemoDataInDev } from './src/services/demoDataService';
 import { scheduleBackgroundSync } from './src/services/syncCoordinator';
@@ -87,7 +87,7 @@ function AppContent() {
           barStyle={isDark ? 'light-content' : 'dark-content'}
           backgroundColor={colors.background}
         />
-        <RootNavigator />
+        <RootStackNavigator />
       </NavigationContainer>
     </DateProvider>
   );

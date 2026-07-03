@@ -15,7 +15,6 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { RouteProp } from '@react-navigation/native';
 import { buildHourlyTopApps } from '../analysis/hourlyAnalyzer';
 import { buildHourlySwitchCounts } from '../analysis/hourlyWanderingAnalyzer';
-import { classifyApp, getCategoryColor } from '../analysis/appClassifier';
 import { buildDiarySessions, type DiarySessionEntry } from '../analysis/diarySessionBuilder';
 import {
   buildWanderingDayView,
@@ -24,14 +23,16 @@ import {
   type WanderingTimelineItem,
 } from '../analysis/wanderingViewBuilder';
 import { FlowGapDivider, formatFlowGapLabel } from '../components/FlowGapDivider';
-import { AppIconBadge } from '../components/HourlyAppRow';
+import { FocusChipsWall } from '../components/FocusChipsWall';
+import { HourGridCell, HourGridLegend } from '../components/HourGridCell';
 import { DateNavigator } from '../components/DateNavigator';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SettingsGearButton } from '../components/settings/SettingsGearButton';
 import { SessionDiaryCard } from '../components/SessionDiaryCard';
 import { WanderingBundleBar } from '../components/WanderingBundleBar';
 import { WanderingSummaryCard } from '../components/WanderingSummaryCard';
-import { DIARY_PAGE_SIZE, DIARY_SESSION_ITEM_ESTIMATED_HEIGHT, HIGH_HOURLY_SWITCH_THRESHOLD } from '../constants';
+import { DIARY_PAGE_SIZE, DIARY_SESSION_ITEM_ESTIMATED_HEIGHT } from '../constants';
 import { useSelectedDate } from '../context/DateContext';
 import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -79,7 +80,7 @@ export function TimelineScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const route = useRoute<RouteProp<RootTabParamList, 'Timeline'>>();
-  const { selectedDate, setSelectedDate } = useSelectedDate();
+  const { selectedDate, setSelectedDate, dataRevision } = useSelectedDate();
   const [activeTab, setActiveTab] = useState<TimelineSubTab>('hourly');
   const [weekAnchorDate, setWeekAnchorDate] = useState(() => getMondayOfWeek(selectedDate));
   const [events, setEvents] = useState<BehaviorEvent[]>([]);
@@ -111,10 +112,6 @@ export function TimelineScreen() {
   const wanderingView = useMemo(
     () => buildWanderingDayView(selectedDate, events, { yesterdayEvents }),
     [events, selectedDate, yesterdayEvents],
-  );
-  const maxGridDurationMs = useMemo(
-    () => Math.max(1, ...weekGrid.flatMap((day) => day.slots.map((slot) => slot.durationMs))),
-    [weekGrid],
   );
 
   const styles = useThemedStyles(({ colors: c }) => ({
@@ -222,62 +219,14 @@ export function TimelineScreen() {
       width: 24,
       ...typography.label,
       ...typography.mono,
-      color: c.textMuted,
+      color: c.labelSecondary,
+      opacity: 0.45,
+      fontWeight: '500',
     },
     hourCells: {
       flex: 1,
       flexDirection: 'row',
       gap: spacing.xs,
-    },
-    hourCell: {
-      flex: 1,
-      aspectRatio: 1,
-      borderRadius: radius.sm,
-      borderWidth: 1,
-      borderColor: c.borderLight,
-      backgroundColor: c.surfaceElevated,
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative',
-    },
-    hourCellLongDwell: {
-      borderWidth: 2,
-      borderColor: c.warning,
-    },
-    hourCellHighSwitch: {
-      borderWidth: 2,
-      borderColor: c.warning,
-      borderStyle: 'dashed',
-    },
-    switchBadge: {
-      position: 'absolute',
-      bottom: 3,
-      left: 3,
-      minWidth: 14,
-      height: 14,
-      borderRadius: 7,
-      paddingHorizontal: 3,
-      backgroundColor: c.warning,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    switchBadgeText: {
-      fontSize: 9,
-      fontWeight: '700',
-      color: c.background,
-      lineHeight: 12,
-    },
-    longDwellDot: {
-      position: 'absolute',
-      top: 4,
-      right: 4,
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: c.warning,
-    },
-    hourCellPressed: {
-      opacity: 0.75,
     },
     timelineListHeader: {
       height: spacing.sm,
@@ -303,7 +252,7 @@ export function TimelineScreen() {
       paddingVertical: spacing.xl,
     },
     emptyState: {
-      alignItems: 'center',
+      alignItems: 'stretch',
       gap: spacing.sm,
       paddingVertical: spacing.xl,
     },
@@ -416,7 +365,7 @@ export function TimelineScreen() {
       };
     });
     setWeekGrid(gridData);
-  }, [selectedDate, weekDates]);
+  }, [selectedDate, weekDates, dataRevision]);
 
   useEffect(() => {
     setLoading(true);
@@ -696,7 +645,7 @@ export function TimelineScreen() {
 
   const renderTabHeader = () => (
     <>
-      <ScreenHeader title="时间线" />
+      <ScreenHeader title="时间线" trailing={<SettingsGearButton />} />
       <View style={styles.segment}>
         <Pressable
           style={[styles.segmentItem, activeTab === 'hourly' && styles.segmentItemActive]}
@@ -786,11 +735,16 @@ export function TimelineScreen() {
   }
 
   if (activeTab === 'wandering') {
+    const hasWandering = wanderingView.summary.episodeCount > 0;
+    const wanderingListData = hasWandering
+      ? wanderingView.timeline
+      : [];
+
     return (
       <ScreenContainer style={styles.screen} textured={false}>
         <FlatList
           ref={wanderingListRef}
-          data={wanderingView.timeline}
+          data={wanderingListData}
           keyExtractor={wanderingKeyExtractor}
           renderItem={renderWanderingItem}
           showsVerticalScrollIndicator={false}
@@ -799,7 +753,7 @@ export function TimelineScreen() {
             <>
               {renderTabHeader()}
               <DateNavigator />
-              {wanderingView.summary.episodeCount > 0 ? (
+              {hasWandering ? (
                 <WanderingSummaryCard
                   summary={wanderingView.summary}
                   onPeakPress={
@@ -816,6 +770,7 @@ export function TimelineScreen() {
                   <Pressable onPress={() => setActiveTab('diary')} hitSlop={8}>
                     <Text style={styles.emptyLink}>查看完整日记 →</Text>
                   </Pressable>
+                  <FocusChipsWall apps={wanderingView.focusApps} />
                 </View>
               )}
             </>
@@ -862,6 +817,7 @@ export function TimelineScreen() {
         </View>
 
         <View style={styles.gridCard}>
+          <HourGridLegend />
           {weekGrid.map((day) => (
             <View key={day.date} style={styles.daySection}>
               <Text style={styles.dayTitle}>
@@ -871,58 +827,18 @@ export function TimelineScreen() {
                 <View key={startHour} style={styles.hourRow}>
                   <Text style={styles.hourMarker}>{String(startHour).padStart(2, '0')}</Text>
                   <View style={styles.hourCells}>
-                    {[...day.slots.slice(startHour, startHour + 6)].reverse().map((slot) => {
-                      const displayLabel = slot.appLabel ?? slot.longDwells[0]?.appLabel;
-                      const displayPackage = slot.packageName ?? slot.longDwells[0]?.packageName;
-                      const switchCount = day.switchCounts[slot.hour] ?? 0;
-                      const isHighSwitch = switchCount >= HIGH_HOURLY_SWITCH_THRESHOLD;
-                      const hasLongDwell = slot.longDwells.length > 0;
-                      const categoryColor = displayLabel
-                        ? getCategoryColor(classifyApp(displayPackage, displayLabel))
-                        : undefined;
-                      const intensity = slot.durationMs / maxGridDurationMs;
-                      const alpha = Math.round(16 + intensity * 56)
-                        .toString(16)
-                        .padStart(2, '0');
-
-                      return (
-                        <Pressable
-                          key={`${day.date}-${slot.hour}`}
-                          style={({ pressed }) => [
-                            styles.hourCell,
-                            hasLongDwell && styles.hourCellLongDwell,
-                            isHighSwitch && !hasLongDwell && styles.hourCellHighSwitch,
-                            categoryColor && {
-                              borderColor: hasLongDwell || isHighSwitch
-                                ? colors.warning
-                                : categoryColor + '55',
-                              backgroundColor: isHighSwitch
-                                ? colors.warning + Math.round(20 + intensity * 40).toString(16).padStart(2, '0')
-                                : categoryColor + alpha,
-                            },
-                            pressed && styles.hourCellPressed,
-                          ]}
-                          onPress={() => jumpToDiaryHour(day.date, slot.hour)}
-                          onLongPress={() => {
-                            setSelectedDate(day.date);
-                            setActiveTab('wandering');
-                          }}>
-                          {displayLabel ? (
-                            <AppIconBadge
-                              packageName={displayPackage}
-                              appLabel={displayLabel}
-                              size={30}
-                            />
-                          ) : null}
-                          {hasLongDwell ? <View style={styles.longDwellDot} /> : null}
-                          {isHighSwitch ? (
-                            <View style={styles.switchBadge}>
-                              <Text style={styles.switchBadgeText}>{switchCount}</Text>
-                            </View>
-                          ) : null}
-                        </Pressable>
-                      );
-                    })}
+                    {[...day.slots.slice(startHour, startHour + 6)].reverse().map((slot) => (
+                      <HourGridCell
+                        key={`${day.date}-${slot.hour}`}
+                        slot={slot}
+                        switchCount={day.switchCounts[slot.hour] ?? 0}
+                        onPress={() => jumpToDiaryHour(day.date, slot.hour)}
+                        onLongPress={() => {
+                          setSelectedDate(day.date);
+                          setActiveTab('wandering');
+                        }}
+                      />
+                    ))}
                   </View>
                 </View>
               ))}

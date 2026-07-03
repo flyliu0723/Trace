@@ -26,6 +26,7 @@ function getLastActivityTimestamp(events: BehaviorEvent[]): number | null {
     'app_foreground',
     'screen_off',
     'media_start',
+    'media_track_change',
   ]);
   const activities = events.filter((e) => activityTypes.has(e.type));
   if (activities.length === 0) {

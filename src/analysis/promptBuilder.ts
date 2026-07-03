@@ -4,6 +4,7 @@ import { addDays, formatDisplayDate } from '../utils/dateUtils';
 import { analyzeBehaviorAnomalies, formatBehaviorAnomalies } from './anomalyAnalyzer';
 import { analyzeDailyComparison, formatDailyComparisonReport } from './comparativeAnalyzer';
 import { compareDayPaths, formatDayPathComparison } from './dayComparisonAnalyzer';
+import { buildContextMediaInsight } from './contextMediaAnalyzer';
 import { analyzeDailyMediaScenes, formatDailyMediaSceneReport } from './mediaSceneAnalyzer';
 import {
   analyzeUnhealthyBehaviors,
@@ -76,6 +77,11 @@ export function buildDailyPromptPayload(
     ? formatDailyMediaSceneReport(mediaSceneReport)
     : '今日无显著后台播客/音乐播放';
 
+  const contextMediaInsight = dayInsights.contextMedia
+    ? buildContextMediaInsight(dayInsights.contextMedia)
+    : null;
+  const contextMediaSection = contextMediaInsight?.description ?? '今日无行进/步行伴随收听';
+
   const unhealthyBehaviorReport = analyzeUnhealthyBehaviors(events);
   const unhealthyBehaviorSection = formatUnhealthyBehaviorReport(unhealthyBehaviorReport);
 
@@ -111,6 +117,9 @@ ${distractionLines || '暂无'}
 
 ## 后台媒体场景
 ${mediaSceneSection}
+
+## 伴随式收听（行进/步行/后台）
+${contextMediaSection}
 
 ## 场景行为（行走/躺卧使用手机）
 ${unhealthyBehaviorSection}

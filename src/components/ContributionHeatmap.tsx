@@ -9,6 +9,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { addDays, getTodayDateString } from '../utils/dateUtils';
+import { SpringPressable } from './SpringPressable';
 import { radius, spacing, typography } from '../theme';
 
 type RangeMode = 'week' | 'month';
@@ -16,23 +17,28 @@ type RangeMode = 'week' | 'month';
 interface ContributionHeatmapProps {
   cells: ContributionDayCell[];
   onDayPress?: (date: string) => void;
+  variant?: 'card' | 'ghost';
 }
 
 const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 const LEGEND_ITEMS: DayMood[] = ['productive', 'entertainment', 'mixed', 'empty'];
 
-export function ContributionHeatmap({ cells, onDayPress }: ContributionHeatmapProps) {
+export function ContributionHeatmap({
+  cells,
+  onDayPress,
+  variant = 'card',
+}: ContributionHeatmapProps) {
   const { palettes } = useTheme();
   const [rangeMode, setRangeMode] = useState<RangeMode>('week');
+  const isGhost = variant === 'ghost';
 
-  const styles = useThemedStyles(({ colors: c }) => ({
+  const styles = useThemedStyles(({ colors: c, shadows }) => ({
     container: {
-      backgroundColor: c.surface,
+      backgroundColor: isGhost ? c.surface : c.surface,
       borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: c.borderLight,
       padding: spacing.lg,
-      marginBottom: spacing.lg,
+      marginBottom: isGhost ? spacing.xl : spacing.lg,
+      ...(isGhost ? shadows.elevated : shadows.card),
     },
     header: {
       flexDirection: 'row',
@@ -42,17 +48,17 @@ export function ContributionHeatmap({ cells, onDayPress }: ContributionHeatmapPr
       marginBottom: spacing.sm,
     },
     title: {
-      ...typography.subtitle,
-      color: c.textPrimary,
-      fontWeight: '600',
+      ...(isGhost ? typography.caption : typography.subtitle),
+      color: isGhost ? c.labelSecondary : c.textPrimary,
+      fontWeight: isGhost ? '600' : '600',
+      letterSpacing: isGhost ? 0.8 : 0,
+      textTransform: isGhost ? 'uppercase' : 'none',
     },
     modeSwitch: {
       flexDirection: 'row',
-      backgroundColor: c.surfaceElevated,
+      backgroundColor: c.background,
       borderRadius: radius.pill,
       padding: 3,
-      borderWidth: 1,
-      borderColor: c.borderLight,
     },
     modeButton: {
       paddingHorizontal: spacing.md,
@@ -93,6 +99,7 @@ export function ContributionHeatmap({ cells, onDayPress }: ContributionHeatmapPr
     weekCells: {
       flexDirection: 'row',
       gap: spacing.xs,
+      alignItems: 'stretch',
     },
     monthGrid: {
       gap: spacing.xs,
@@ -100,16 +107,19 @@ export function ContributionHeatmap({ cells, onDayPress }: ContributionHeatmapPr
     monthRow: {
       flexDirection: 'row',
       gap: spacing.xs,
+      alignItems: 'stretch',
+    },
+    cellSlot: {
+      flex: 1,
+      aspectRatio: 1,
     },
     cell: {
       flex: 1,
-      aspectRatio: 1,
+      width: '100%',
       borderRadius: radius.sm,
       borderWidth: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 28,
-      maxHeight: 44,
     },
     cellEmpty: {
       backgroundColor: c.heatEmpty,
@@ -117,8 +127,7 @@ export function ContributionHeatmap({ cells, onDayPress }: ContributionHeatmapPr
       opacity: 0.35,
     },
     cellPressed: {
-      opacity: 0.8,
-      transform: [{ scale: 0.95 }],
+      opacity: 0.82,
     },
     cellDay: {
       ...typography.label,
@@ -163,23 +172,28 @@ export function ContributionHeatmap({ cells, onDayPress }: ContributionHeatmapPr
 
   const renderCell = (cell: ContributionDayCell | undefined, key: string) => {
     if (!cell) {
-      return <View key={key} style={[styles.cell, styles.cellEmpty]} />;
+      return (
+        <View key={key} style={styles.cellSlot}>
+          <View style={[styles.cell, styles.cellEmpty]} />
+        </View>
+      );
     }
 
     const color = getContributionColor(cell.mood, cell.intensity, palettes);
     const dayNum = new Date(`${cell.date}T12:00:00`).getDate();
 
     return (
-      <Pressable
-        key={key}
-        style={({ pressed }) => [
-          styles.cell,
-          { backgroundColor: color, borderColor: color + 'AA' },
-          pressed && styles.cellPressed,
-        ]}
-        onPress={() => onDayPress?.(cell.date)}>
-        <Text style={styles.cellDay}>{dayNum}</Text>
-      </Pressable>
+      <View key={key} style={styles.cellSlot}>
+        <SpringPressable
+          style={[
+            styles.cell,
+            { backgroundColor: color, borderColor: color + 'AA' },
+          ]}
+          onPress={() => onDayPress?.(cell.date)}
+          scaleTo={0.95}>
+          <Text style={styles.cellDay}>{dayNum}</Text>
+        </SpringPressable>
+      </View>
     );
   };
 

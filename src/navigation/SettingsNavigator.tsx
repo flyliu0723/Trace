@@ -2,11 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
 import { AiSettingsScreen } from '../screens/AiSettingsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-
-export type SettingsStackParamList = {
-  SettingsMain: undefined;
-  AiSettings: undefined;
-};
+import type { SettingsStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
@@ -25,7 +21,7 @@ export function SettingsNavigator() {
         component={AiSettingsScreen}
         options={{
           headerShown: true,
-          title: 'AI',
+          title: 'AI 总结助手',
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,
           headerShadowVisible: false,

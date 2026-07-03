@@ -22,6 +22,9 @@ export function buildDedupeKey(
   if (event.type === 'posture_change') {
     return `${event.type}|${event.timestamp}|${event.metadata?.posture ?? ''}`;
   }
+  if (event.type === 'media_track_change') {
+    return `${event.type}|${event.timestamp}|${event.packageName ?? ''}|${event.metadata?.title ?? ''}`;
+  }
   return `${event.type}|${event.timestamp}|${event.packageName ?? ''}`;
 }
 
@@ -212,6 +215,43 @@ export async function getLastEventTimestamp(): Promise<number> {
   );
   const row = result.rows?.[0] as { last_timestamp: number | null } | undefined;
   return row?.last_timestamp ?? 0;
+}
+
+const MEDIA_STATE_TYPES = new Set<EventType>([
+  'media_start',
+  'media_track_change',
+  'media_pause',
+  'media_stop',
+]);
+
+const MEDIA_OPEN_TYPES = new Set<EventType>(['media_start', 'media_track_change']);
+
+/** 返回当前 DB 中仍处于播放中状态的 package（最后一条媒体事件为 start/track_change） */
+export async function getOpenMediaPackageNames(): Promise<string[]> {
+  const database = getDb();
+  const result = await database.execute(
+    `SELECT package_name, type, timestamp
+     FROM ${EVENTS_TABLE}
+     WHERE type IN ('media_start', 'media_track_change', 'media_pause', 'media_stop')
+       AND package_name IS NOT NULL
+     ORDER BY timestamp ASC`,
+  );
+
+  const lastState = new Map<string, EventType>();
+  for (const row of result.rows as Array<{
+    package_name: string;
+    type: EventType;
+    timestamp: number;
+  }>) {
+    if (!MEDIA_STATE_TYPES.has(row.type)) {
+      continue;
+    }
+    lastState.set(row.package_name, row.type);
+  }
+
+  return [...lastState.entries()]
+    .filter(([, type]) => MEDIA_OPEN_TYPES.has(type))
+    .map(([packageName]) => packageName);
 }
 
 export async function fixMislabeledAppEvents(

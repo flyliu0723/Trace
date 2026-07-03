@@ -1,3 +1,9 @@
+/** 应用版本号（与 package.json 保持同步） */
+export const APP_VERSION = '0.1.0';
+
+/** 一小时的毫秒数 */
+export const HOUR_MS = 60 * 60_000;
+
 /** 短会话阈值（毫秒），解锁到锁屏小于此值视为 Quick Session */
 export const QUICK_SESSION_THRESHOLD_MS = 20_000;
 
@@ -33,6 +39,12 @@ export const LONG_DWELL_THRESHOLD_MS = 5 * 60_000;
 
 /** 不健康行为最短持续时长（毫秒） */
 export const UNHEALTHY_BEHAVIOR_MIN_DURATION_MS = 2 * 60_000;
+
+/** 上下文媒体片段最短展示时长（毫秒） */
+export const CONTEXT_MEDIA_MIN_SEGMENT_MS = 60_000;
+
+/** 媒体片段归属某运动上下文的占比阈值（0-1） */
+export const CONTEXT_MEDIA_COVERAGE_THRESHOLD = 0.5;
 
 /** 片段内上下文占比阈值（0-1） */
 export const CONTEXT_COVERAGE_THRESHOLD = 0.7;

@@ -175,6 +175,36 @@ class BehaviorMonitorModule(
   }
 
   @ReactMethod
+  fun reconcileMediaState(promise: Promise) {
+    try {
+      val events = MediaStateReconciler.reconcile(reactContext)
+      val array: WritableArray = Arguments.createArray()
+      for (event in events) {
+        array.pushMap(event.toWritableMap())
+      }
+      promise.resolve(array)
+    } catch (e: Exception) {
+      promise.reject("RECONCILE_MEDIA_FAILED", e.message, e)
+    }
+  }
+
+  @ReactMethod
+  fun getActiveMediaPackages(promise: Promise) {
+    try {
+      val playing = mutableSetOf<String>()
+      playing.addAll(MediaSessionWatcher.getPlayingPackages())
+      playing.addAll(AudioPlaybackWatcher.getPlayingPackages())
+      val array: WritableArray = Arguments.createArray()
+      for (pkg in playing.sorted()) {
+        array.pushString(pkg)
+      }
+      promise.resolve(array)
+    } catch (e: Exception) {
+      promise.reject("GET_ACTIVE_MEDIA_FAILED", e.message, e)
+    }
+  }
+
+  @ReactMethod
   fun resolveAppLabels(packageNames: ReadableArray, promise: Promise) {
     try {
       val result: WritableMap = Arguments.createMap()

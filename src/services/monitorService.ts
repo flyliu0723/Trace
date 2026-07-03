@@ -4,6 +4,7 @@ import {
   fixMislabeledAppEvents,
   getLastEventTimestamp,
   getMislabeledPackageNames,
+  getOpenMediaPackageNames,
   insertEvents,
 } from '../db';
 import { FIRST_INSTALL_RECONCILE_LOOKBACK_MS, RECONCILE_OVERLAP_MS } from '../constants';
@@ -42,15 +43,51 @@ export async function stopMonitoring(): Promise<boolean> {
   return BehaviorMonitor.stopMonitor();
 }
 
+/** 对比 DB 中未闭合的媒体片段与当前实际播放状态，补全 media_stop */
+async function reconcileOpenMediaFromDb(): Promise<BehaviorEvent[]> {
+  if (Platform.OS !== 'android') {
+    return [];
+  }
+
+  try {
+    const [openPackages, playingNow] = await Promise.all([
+      getOpenMediaPackageNames(),
+      BehaviorMonitor.getActiveMediaPackages(),
+    ]);
+    const playingSet = new Set(playingNow);
+    const now = Date.now();
+    const events: BehaviorEvent[] = [];
+
+    for (const packageName of openPackages) {
+      if (playingSet.has(packageName)) {
+        continue;
+      }
+      events.push({
+        type: 'media_stop',
+        timestamp: now,
+        packageName,
+        source: 'reconcile',
+        metadata: { reconciled: 'db' },
+      });
+    }
+
+    return events;
+  } catch (error) {
+    console.error('reconcileOpenMediaFromDb failed:', error);
+    return [];
+  }
+}
+
 /** 同步内存事件并执行 UsageStats 对账补全 */
 export async function syncAndReconcileEvents(): Promise<{
   synced: number;
   reconciled: number;
+  mediaReconciled: number;
   repaired: number;
   events: BehaviorEvent[];
 }> {
   if (Platform.OS !== 'android') {
-    return { synced: 0, reconciled: 0, repaired: 0, events: [] };
+    return { synced: 0, reconciled: 0, mediaReconciled: 0, repaired: 0, events: [] };
   }
 
   const memoryEvents = await BehaviorMonitor.syncEvents();
@@ -64,13 +101,27 @@ export async function syncAndReconcileEvents(): Promise<{
 
   const reconciledEvents = await BehaviorMonitor.reconcileEvents(since);
   const reconciled = reconciledEvents.length > 0 ? await insertEvents(reconciledEvents) : 0;
+
+  const nativeMediaEvents = await BehaviorMonitor.reconcileMediaState();
+  const nativeStoppedPackages = new Set(
+    nativeMediaEvents.filter((e) => e.type === 'media_stop' && e.packageName).map((e) => e.packageName!),
+  );
+  const nativeMediaInserted = nativeMediaEvents.length > 0 ? await insertEvents(nativeMediaEvents) : 0;
+
+  const dbMediaEvents = (await reconcileOpenMediaFromDb()).filter(
+    (event) => !event.packageName || !nativeStoppedPackages.has(event.packageName),
+  );
+  const dbMediaInserted = dbMediaEvents.length > 0 ? await insertEvents(dbMediaEvents) : 0;
+  const mediaReconciled = nativeMediaInserted + dbMediaInserted;
+
   const repaired = await repairMislabeledAppEvents();
 
   return {
     synced,
     reconciled,
+    mediaReconciled,
     repaired,
-    events: [...memoryEvents, ...reconciledEvents],
+    events: [...memoryEvents, ...reconciledEvents, ...nativeMediaEvents, ...dbMediaEvents],
   };
 }
 

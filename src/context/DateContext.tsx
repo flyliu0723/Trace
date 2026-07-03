@@ -1,4 +1,14 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { AppState } from 'react-native';
+import { syncOnForeground } from '../services/syncCoordinator';
 import { addDays, getTodayDateString, isFutureDate } from '../utils/dateUtils';
 
 interface DateContextValue {
@@ -9,12 +19,16 @@ interface DateContextValue {
   goToday: () => void;
   canGoNext: boolean;
   isSelectedToday: boolean;
+  /** 前台同步完成后递增，供各页面刷新数据 */
+  dataRevision: number;
 }
 
 const DateContext = createContext<DateContextValue | null>(null);
 
 export function DateProvider({ children }: { children: React.ReactNode }) {
   const [selectedDate, setSelectedDateState] = useState(getTodayDateString());
+  const [dataRevision, setDataRevision] = useState(0);
+  const lastCalendarDateRef = useRef(getTodayDateString());
 
   const setSelectedDate = useCallback((date: string) => {
     if (isFutureDate(date)) {
@@ -38,6 +52,33 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
     setSelectedDateState(getTodayDateString());
   }, []);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') {
+        return;
+      }
+
+      const today = getTodayDateString();
+      const previousCalendarDate = lastCalendarDateRef.current;
+
+      if (today !== previousCalendarDate) {
+        setSelectedDateState((current) => {
+          if (current === previousCalendarDate) {
+            return today;
+          }
+          return current;
+        });
+      }
+      lastCalendarDateRef.current = today;
+
+      syncOnForeground()
+        .then(() => setDataRevision((revision) => revision + 1))
+        .catch(console.error);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   const value = useMemo(
     () => ({
       selectedDate,
@@ -47,8 +88,9 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
       goToday,
       canGoNext: !isFutureDate(addDays(selectedDate, 1)),
       isSelectedToday: selectedDate === getTodayDateString(),
+      dataRevision,
     }),
-    [selectedDate, setSelectedDate, goPrevDay, goNextDay, goToday],
+    [selectedDate, setSelectedDate, goPrevDay, goNextDay, goToday, dataRevision],
   );
 
   return <DateContext.Provider value={value}>{children}</DateContext.Provider>;

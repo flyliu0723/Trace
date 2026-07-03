@@ -2,7 +2,6 @@ package com.spendwhere.monitor
 
 import android.content.ComponentName
 import android.content.Context
-import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
@@ -23,6 +22,8 @@ object MediaSessionWatcher {
   private val activeControllers = mutableMapOf<String, MediaController>()
   private val controllerCallbacks = mutableMapOf<String, MediaController.Callback>()
   private val lastPlaybackState = mutableMapOf<String, Int>()
+  private val lastTrackKey = mutableMapOf<String, String>()
+  private var pendingInitialScan = false
 
   private val sessionsChangedListener =
     MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
@@ -44,6 +45,17 @@ object MediaSessionWatcher {
     return enabled.contains(context.packageName)
   }
 
+  fun isPlaying(packageName: String): Boolean {
+    return lastPlaybackState[packageName] == PlaybackState.STATE_PLAYING
+  }
+
+  fun getPlayingPackages(): Set<String> {
+    return lastPlaybackState
+      .filter { it.value == PlaybackState.STATE_PLAYING }
+      .keys
+      .toSet()
+  }
+
   fun start(context: Context) {
     if (!hasNotificationListenerAccess(context)) {
       return
@@ -55,6 +67,7 @@ object MediaSessionWatcher {
       appContext?.getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager
     listenerComponent =
       ComponentName(appContext!!, SpendWhereNotificationListenerService::class.java)
+    pendingInitialScan = true
 
     try {
       mediaSessionManager?.addOnActiveSessionsChangedListener(
@@ -83,6 +96,8 @@ object MediaSessionWatcher {
     activeControllers.clear()
     controllerCallbacks.clear()
     lastPlaybackState.clear()
+    lastTrackKey.clear()
+    pendingInitialScan = false
     mediaSessionManager = null
     listenerComponent = null
     appContext = null
@@ -96,6 +111,11 @@ object MediaSessionWatcher {
 
   fun onNotificationListenerDisconnected() {
     stop()
+  }
+
+  /** 供 AudioPlaybackWatcher 在检测到系统有音频输出时立即重扫 MediaSession */
+  fun pollNow() {
+    pollActiveSessions()
   }
 
   private fun pollActiveSessions() {
@@ -113,6 +133,7 @@ object MediaSessionWatcher {
 
   private fun syncControllers(controllers: List<MediaController>) {
     val context = appContext ?: return
+    val isRecovering = pendingInitialScan
     val currentPackages = controllers.map { it.packageName }.toSet()
 
     for (controller in controllers) {
@@ -123,8 +144,9 @@ object MediaSessionWatcher {
         if (knownState != null && currentState != null && knownState != currentState) {
           handlePlaybackTransition(context, controller, knownState, currentState)
         } else if (knownState == null) {
-          observeInitialState(context, controller)
+          observeInitialState(context, controller, isRecovering)
         }
+        checkMetadataChange(context, controller)
         continue
       }
 
@@ -138,6 +160,10 @@ object MediaSessionWatcher {
             }
           }
 
+          override fun onMetadataChanged(metadata: android.media.MediaMetadata?) {
+            checkMetadataChange(context, controller)
+          }
+
           override fun onSessionDestroyed() {
             handleSessionDestroyed(context, pkg)
           }
@@ -146,24 +172,35 @@ object MediaSessionWatcher {
       controller.registerCallback(callback, handler)
       activeControllers[pkg] = controller
       controllerCallbacks[pkg] = callback
-      observeInitialState(context, controller)
+      observeInitialState(context, controller, isRecovering)
     }
 
     val removedPackages = activeControllers.keys - currentPackages
     for (pkg in removedPackages) {
       handleSessionDestroyed(context, pkg)
     }
+
+    if (pendingInitialScan) {
+      pendingInitialScan = false
+    }
   }
 
-  private fun observeInitialState(context: Context, controller: MediaController) {
+  private fun observeInitialState(
+    context: Context,
+    controller: MediaController,
+    isRecovering: Boolean,
+  ) {
     val pkg = controller.packageName
     val state = controller.playbackState?.state ?: PlaybackState.STATE_NONE
     val previous = lastPlaybackState[pkg]
 
     if (previous == null) {
       lastPlaybackState[pkg] = state
+      rememberTrackKey(controller)
       if (state == PlaybackState.STATE_PLAYING) {
-        emitMediaEvent(context, controller, "media_start")
+        handlePlayingDiscovered(context, controller, isRecovering)
+      } else if (isRecovering) {
+        MediaPlaybackPersistence.recordStop(context, pkg)
       }
       return
     }
@@ -171,6 +208,77 @@ object MediaSessionWatcher {
     if (previous != state) {
       handlePlaybackTransition(context, controller, previous, state)
     }
+  }
+
+  private fun rememberTrackKey(controller: MediaController) {
+    val pkg = controller.packageName
+    val metadata = MediaMetadataHelper.buildMetadata(controller)
+    lastTrackKey[pkg] = MediaMetadataHelper.buildTrackKey(metadata)
+  }
+
+  private fun checkMetadataChange(context: Context, controller: MediaController) {
+    val pkg = controller.packageName
+    if (lastPlaybackState[pkg] != PlaybackState.STATE_PLAYING) {
+      return
+    }
+
+    val metadata = MediaMetadataHelper.buildMetadata(controller)
+    val trackKey = MediaMetadataHelper.buildTrackKey(metadata)
+    if (trackKey.isBlank()) {
+      return
+    }
+
+    val previous = lastTrackKey[pkg]
+    if (previous == null) {
+      lastTrackKey[pkg] = trackKey
+      return
+    }
+
+    if (previous != trackKey) {
+      lastTrackKey[pkg] = trackKey
+      emitMediaEvent(context, controller, "media_track_change")
+    }
+  }
+
+  private fun handlePlayingDiscovered(
+    context: Context,
+    controller: MediaController,
+    isRecovering: Boolean,
+  ) {
+    if (!isRecovering) {
+      emitMediaEvent(context, controller, "media_start")
+      return
+    }
+
+    val pkg = controller.packageName
+    val persisted = MediaPlaybackPersistence.getActivePlayback(context, pkg)
+    if (persisted != null) {
+      // 服务重启但播放未中断，静默恢复，不重复写入 media_start
+      return
+    }
+
+    emitRecoveredMediaStart(context, controller)
+  }
+
+  private fun emitRecoveredMediaStart(context: Context, controller: MediaController) {
+    val pkg = controller.packageName
+    val position = controller.playbackState?.position ?: 0L
+    val estimatedStart = maxOf(0L, System.currentTimeMillis() - position)
+    val metadata = MediaMetadataHelper.buildMetadata(controller).toMutableMap()
+    metadata["recovered"] = "true"
+
+    EventStore.addEvent(
+      MonitorEvent(
+        type = "media_start",
+        timestamp = estimatedStart,
+        packageName = pkg,
+        appLabel = AppInfoResolver.resolveAppLabel(context, pkg),
+        metadata = metadata,
+        source = "recovery",
+      ),
+    )
+    MediaPlaybackPersistence.recordStart(context, pkg, estimatedStart, metadata)
+    rememberTrackKey(controller)
   }
 
   private fun handlePlaybackTransition(
@@ -184,12 +292,14 @@ object MediaSessionWatcher {
 
     when {
       next == PlaybackState.STATE_PLAYING && previous != PlaybackState.STATE_PLAYING -> {
+        rememberTrackKey(controller)
         emitMediaEvent(context, controller, "media_start")
       }
       next == PlaybackState.STATE_PAUSED && previous == PlaybackState.STATE_PLAYING -> {
         emitMediaEvent(context, controller, "media_pause")
       }
       next == PlaybackState.STATE_PLAYING && previous == PlaybackState.STATE_PAUSED -> {
+        rememberTrackKey(controller)
         emitMediaEvent(context, controller, "media_start")
       }
       isStoppedState(next) && wasActiveState(previous) -> {
@@ -214,6 +324,7 @@ object MediaSessionWatcher {
             source = "media_session",
           ),
         )
+        MediaPlaybackPersistence.recordStop(context, pkg)
       }
     }
 
@@ -223,37 +334,30 @@ object MediaSessionWatcher {
     activeControllers.remove(pkg)
     controllerCallbacks.remove(pkg)
     lastPlaybackState.remove(pkg)
+    lastTrackKey.remove(pkg)
   }
 
   private fun emitMediaEvent(context: Context, controller: MediaController, type: String) {
     val pkg = controller.packageName
-    val metadata = buildMediaMetadata(controller)
+    val metadata = MediaMetadataHelper.buildMetadata(controller)
+    val timestamp = System.currentTimeMillis()
+
     EventStore.addEvent(
       MonitorEvent(
         type = type,
-        timestamp = System.currentTimeMillis(),
+        timestamp = timestamp,
         packageName = pkg,
         appLabel = AppInfoResolver.resolveAppLabel(context, pkg),
         metadata = metadata,
         source = "media_session",
       ),
     )
-  }
 
-  private fun buildMediaMetadata(controller: MediaController): Map<String, String> {
-    val metadata = controller.metadata ?: return emptyMap()
-    val result = mutableMapOf<String, String>()
-
-    metadata.getString(MediaMetadata.METADATA_KEY_TITLE)?.let { result["title"] = it }
-    metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.let { result["artist"] = it }
-    metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)?.let { result["album"] = it }
-
-    val duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION)
-    if (duration > 0) {
-      result["durationMs"] = duration.toString()
+    when (type) {
+      "media_start" -> MediaPlaybackPersistence.recordStart(context, pkg, timestamp, metadata)
+      "media_track_change" -> MediaPlaybackPersistence.updateMetadata(context, pkg, metadata)
+      "media_pause", "media_stop" -> MediaPlaybackPersistence.recordStop(context, pkg)
     }
-
-    return result
   }
 
   private fun wasActiveState(state: Int): Boolean {

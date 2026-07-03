@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
   getGoalTypeLabel,
   type SessionGoalType,
@@ -59,7 +60,7 @@ export function SessionDiaryCard({
       : accent + '55';
   const cardBackground = isWandering ? colors.warning + '14' : colors.surfaceElevated;
   const cardOpacity = isMuted ? 0.82 : 1;
-  const anchorLabel = isFlow ? '流' : isWandering ? '离' : '段';
+  const flowLineColor = colors.accent;
 
   const styles = useThemedStyles(({ colors: c }) => ({
     row: {
@@ -67,31 +68,51 @@ export function SessionDiaryCard({
       opacity: cardOpacity,
     },
     timeline: {
-      width: 36,
-      alignItems: 'center',
-    },
-    anchor: {
       width: 28,
-      height: 28,
-      borderRadius: 14,
-      borderWidth: 1.5,
-      borderColor: accent,
-      backgroundColor: c.surfaceElevated,
       alignItems: 'center',
-      justifyContent: 'center',
+      paddingTop: spacing.sm,
     },
-    anchorText: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: accent,
+    flowLine: {
+      width: 3,
+      flex: 1,
+      borderRadius: 2,
+      backgroundColor: flowLineColor,
+      marginTop: spacing.xs,
+      minHeight: 24,
     },
-    dashedLine: {
+    segmentAnchor: {
+      width: 8,
+      height: 2,
+      borderRadius: 1,
+      backgroundColor: c.border,
+      opacity: 0.45,
+    },
+    segmentLine: {
       flex: 1,
       width: 1,
       borderLeftWidth: 1,
       borderStyle: 'dashed',
-      borderColor: c.border,
-      marginVertical: 4,
+      borderColor: c.borderLight,
+      opacity: 0.55,
+      marginTop: spacing.xs,
+      minHeight: 20,
+    },
+    wanderingAnchor: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: c.warning + '88',
+      backgroundColor: c.warning + '22',
+    },
+    wanderingLine: {
+      flex: 1,
+      width: 1,
+      borderLeftWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: c.warning + '55',
+      marginTop: spacing.xs,
+      minHeight: 20,
     },
     content: {
       flex: 1,
@@ -111,6 +132,18 @@ export function SessionDiaryCard({
       alignItems: 'center',
       flexWrap: 'wrap',
       gap: spacing.sm,
+    },
+    headerMain: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      minWidth: 0,
+    },
+    expandIcon: {
+      marginLeft: 'auto',
+      opacity: 0.35,
     },
     timeRange: {
       ...typography.subtitle,
@@ -143,7 +176,6 @@ export function SessionDiaryCard({
     duration: {
       ...typography.label,
       color: c.textMuted,
-      marginLeft: 'auto',
       ...typography.mono,
     },
     summary: {
@@ -161,10 +193,6 @@ export function SessionDiaryCard({
       ...typography.label,
       color: c.textMuted,
       marginHorizontal: 2,
-    },
-    expandHint: {
-      ...typography.label,
-      color: c.textMuted,
     },
     expandedSection: {
       marginTop: spacing.sm,
@@ -189,14 +217,33 @@ export function SessionDiaryCard({
     </Pressable>
   );
 
+  const renderTimelineAxis = () => {
+    if (isFlow) {
+      return (
+        <>
+          {!isLast || expanded ? <View style={styles.flowLine} /> : null}
+        </>
+      );
+    }
+    if (isWandering) {
+      return (
+        <>
+          <View style={styles.wanderingAnchor} />
+          {!isLast || expanded ? <View style={styles.wanderingLine} /> : null}
+        </>
+      );
+    }
+    return (
+      <>
+        <View style={styles.segmentAnchor} />
+        {!isLast || expanded ? <View style={styles.segmentLine} /> : null}
+      </>
+    );
+  };
+
   return (
     <View style={styles.row}>
-      <View style={styles.timeline}>
-        <View style={styles.anchor}>
-          <Text style={styles.anchorText}>{anchorLabel}</Text>
-        </View>
-        {!isLast || expanded ? <View style={styles.dashedLine} /> : null}
-      </View>
+      <View style={styles.timeline}>{renderTimelineAxis()}</View>
 
       <View style={styles.content}>
         <Pressable
@@ -205,15 +252,23 @@ export function SessionDiaryCard({
           accessibilityRole="button"
           accessibilityState={{ expanded }}>
           <View style={styles.header}>
-            <Text style={styles.timeRange}>
-              {formatTime(goal.startTime)}
-              {endTimeLabel ? ` — ${endTimeLabel}` : ''}
-            </Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{getGoalTypeLabel(goal.goalType)}</Text>
+            <View style={styles.headerMain}>
+              <Text style={styles.timeRange}>
+                {formatTime(goal.startTime)}
+                {endTimeLabel ? ` — ${endTimeLabel}` : ''}
+              </Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{getGoalTypeLabel(goal.goalType)}</Text>
+              </View>
+              {(isWandering || isFlow) ? moodBadge : null}
+              <Text style={styles.duration}>{formatDuration(goal.durationMs)}</Text>
             </View>
-            {(isWandering || isFlow) ? moodBadge : null}
-            <Text style={styles.duration}>{formatDuration(goal.durationMs)}</Text>
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.textMuted}
+              style={styles.expandIcon}
+            />
           </View>
 
           {appPath.length > 0 ? (
@@ -236,14 +291,13 @@ export function SessionDiaryCard({
             <Text style={styles.summary}>{goal.summary}</Text>
           )}
 
-          <Text style={styles.expandHint}>{expanded ? '收起详情' : '点击查看原始事件'}</Text>
-
           {expanded ? (
             <View style={styles.expandedSection}>
               {session.events.map((event, index) => (
                 <EventTimelineItem
                   key={String(event.id ?? `${event.timestamp}-${event.type}-${index}`)}
                   event={event}
+                  contextEvents={session.events}
                   isLast={index === session.events.length - 1}
                 />
               ))}

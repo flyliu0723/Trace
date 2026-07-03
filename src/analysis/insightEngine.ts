@@ -1,5 +1,6 @@
 import type { BehaviorEvent } from '../types/event';
 import { buildDailySummary, buildSessions, formatDuration } from './sessionAnalyzer';
+import { buildContextMediaInsight, analyzeContextMedia, type DailyContextMediaReport } from './contextMediaAnalyzer';
 import { analyzePathTriggers, formatPathTrigger } from './pathAnalyzer';
 import {
   analyzeAfterWorkPattern,
@@ -35,6 +36,7 @@ export interface DayInsights {
   sessionGoals: SessionGoal[];
   goalSummary: ReturnType<typeof summarizeSessionGoals>;
   unhealthyBehavior: UnhealthyBehaviorReport;
+  contextMedia: DailyContextMediaReport | null;
 }
 
 export function buildDayInsights(
@@ -51,6 +53,7 @@ export function buildDayInsights(
   const distractionHours = analyzeDistractionHours(events, 4);
   const afterWork = analyzeAfterWorkPattern(events);
   const unhealthyBehavior = analyzeUnhealthyBehaviors(events);
+  const contextMedia = analyzeContextMedia(events);
 
   const insights: BehaviorInsight[] = [];
 
@@ -96,6 +99,16 @@ export function buildDayInsights(
       type: 'context',
       title: lyingInsight.title,
       description: lyingInsight.description,
+    });
+  }
+
+  const contextMediaInsight = contextMedia ? buildContextMediaInsight(contextMedia) : null;
+  if (contextMediaInsight) {
+    insights.push({
+      id: 'context-media',
+      type: 'context',
+      title: contextMediaInsight.title,
+      description: contextMediaInsight.description,
     });
   }
 
@@ -160,6 +173,7 @@ export function buildDayInsights(
     sessionGoals,
     goalSummary,
     unhealthyBehavior,
+    contextMedia,
   };
 }
 

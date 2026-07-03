@@ -19,7 +19,7 @@ const SCENE_LABELS: Record<LifeScene, string> = {
   late_night: '深夜',
 };
 
-const MEDIA_PLAY_TYPES = new Set<BehaviorEvent['type']>(['media_start']);
+const MEDIA_SEGMENT_START_TYPES = new Set<BehaviorEvent['type']>(['media_start', 'media_track_change']);
 const MEDIA_END_TYPES = new Set<BehaviorEvent['type']>(['media_pause', 'media_stop']);
 
 export interface MediaPlaybackSegment {
@@ -69,9 +69,9 @@ function getSceneFromTimestamp(timestamp: number): LifeScene {
   return getSceneFromHour(new Date(timestamp).getHours());
 }
 
-function extractMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[] {
+export function extractMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[] {
   const mediaEvents = [...events]
-    .filter((e) => MEDIA_PLAY_TYPES.has(e.type) || MEDIA_END_TYPES.has(e.type))
+    .filter((e) => MEDIA_SEGMENT_START_TYPES.has(e.type) || MEDIA_END_TYPES.has(e.type))
     .sort((a, b) => a.timestamp - b.timestamp);
 
   const segments: MediaPlaybackSegment[] = [];
@@ -108,10 +108,11 @@ function extractMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[] {
   };
 
   for (const event of mediaEvents) {
-    if (event.type === 'media_start') {
-      if (currentStart === null) {
-        currentStart = event;
+    if (MEDIA_SEGMENT_START_TYPES.has(event.type)) {
+      if (currentStart !== null) {
+        flushSegment(event.timestamp);
       }
+      currentStart = event;
       continue;
     }
     if (currentStart !== null) {

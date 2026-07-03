@@ -27,9 +27,14 @@ export async function ensureSynced(options?: { force?: boolean }): Promise<void>
   }
 }
 
+/** App 回前台时强制同步，跳过节流 */
+export async function syncOnForeground(): Promise<void> {
+  await ensureSynced({ force: true });
+}
+
 /** 启动后后台对账，不阻塞 UI */
 export function scheduleBackgroundSync(): void {
   setTimeout(() => {
-    ensureSynced().catch(console.error);
+    ensureSynced({ force: true }).catch(console.error);
   }, 0);
 }

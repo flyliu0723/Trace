@@ -57,12 +57,28 @@ export function createShadows(themeColors: ThemeColors, isDark = true) {
       shadowRadius: 12,
       elevation: 4,
     },
+    /** 主卡片弥散投影 */
+    elevated: {
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.22 : 0.03,
+      shadowRadius: 16,
+      elevation: 2,
+    },
+    /** 指标小卡片微投影 */
+    elevatedSubtle: {
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.18 : 0.02,
+      shadowRadius: 12,
+      elevation: 1,
+    },
     card: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0.25 : 0.08,
-      shadowRadius: 8,
-      elevation: 3,
+      shadowOpacity: isDark ? 0.25 : 0.03,
+      shadowRadius: 16,
+      elevation: 2,
     },
   };
 }

@@ -13,11 +13,15 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { buildDayInsights, type DayInsights } from '../analysis/insightEngine';
 import { buildWanderingDayView } from '../analysis/wanderingViewBuilder';
 import { AiInsightsPanel } from '../components/AiInsightsPanel';
+import { ContextMediaCard } from '../components/ContextMediaCard';
 import { DateNavigator } from '../components/DateNavigator';
 import { InsightCard } from '../components/InsightCard';
+import { InsightSection } from '../components/InsightSection';
+import { PatternPathCard } from '../components/PatternPathCard';
 import { PathTriggerRow } from '../components/PathTriggerRow';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SettingsGearButton } from '../components/settings/SettingsGearButton';
 import { SessionGoalCard } from '../components/SessionGoalCard';
 import { WanderingSummaryCard } from '../components/WanderingSummaryCard';
 import { useSelectedDate } from '../context/DateContext';
@@ -37,7 +41,7 @@ import type { BehaviorEvent } from '../types/event';
 import { getDateStringsEndingAt, isToday, addDays } from '../utils/dateUtils';
 import type { SessionGoal } from '../analysis/sessionGoalAnalyzer';
 import type { RootTabParamList } from '../navigation/types';
-import { radius, spacing, typography } from '../theme';
+import { spacing, typography } from '../theme';
 
 function sortGoalsByRecent(goals: SessionGoal[]): SessionGoal[] {
   return [...goals].sort((a, b) => b.startTime - a.startTime);
@@ -46,7 +50,7 @@ function sortGoalsByRecent(goals: SessionGoal[]): SessionGoal[] {
 export function InsightsScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, dataRevision } = useSelectedDate();
   const [data, setData] = useState<DayInsights | null>(null);
   const [dayEvents, setDayEvents] = useState<BehaviorEvent[]>([]);
   const [yesterdayEvents, setYesterdayEvents] = useState<BehaviorEvent[]>([]);
@@ -73,39 +77,10 @@ export function InsightsScreen() {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    sectionTitle: {
-      color: c.textPrimary,
-      fontSize: 15,
-      fontWeight: '600',
-      marginBottom: spacing.sm,
-    },
     insightScroll: {
       paddingRight: spacing.md,
       paddingBottom: spacing.sm,
       marginBottom: spacing.md,
-    },
-    section: {
-      backgroundColor: c.surface,
-      borderRadius: radius.lg,
-      padding: spacing.md,
-      marginBottom: spacing.md,
-      borderWidth: 1,
-      borderColor: c.borderLight,
-    },
-    patternRow: {
-      paddingVertical: spacing.sm,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: c.border,
-    },
-    patternPath: {
-      color: c.accent,
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    patternMeta: {
-      color: c.textMuted,
-      fontSize: 12,
-      marginTop: 2,
     },
     empty: {
       color: c.textMuted,
@@ -170,7 +145,7 @@ export function InsightsScreen() {
     setDailyAiSummary(cachedDaily);
     setWeeklyAiSummary(cachedWeekly);
     setMonthlyAiSummary(cachedMonthly);
-  }, [selectedDate, weekDates, weekEndDate, monthEndDate]);
+  }, [selectedDate, weekDates, weekEndDate, monthEndDate, dataRevision]);
 
   useEffect(() => {
     setLoading(true);
@@ -294,7 +269,7 @@ export function InsightsScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }>
-        <ScreenHeader title="洞察" />
+        <ScreenHeader title="洞察" trailing={<SettingsGearButton />} />
         <DateNavigator />
 
         <WanderingSummaryCard
@@ -310,6 +285,8 @@ export function InsightsScreen() {
               : undefined
           }
         />
+
+        <ContextMediaCard report={data?.contextMedia ?? null} />
 
         <AiInsightsPanel
           aiConfigured={aiConfigured}
@@ -351,47 +328,43 @@ export function InsightsScreen() {
             </ScrollView>
 
             {(data?.triggers.length ?? 0) > 0 ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>跳转</Text>
+              <InsightSection title="跳转">
                 {data?.triggers.map((trigger) => (
                   <PathTriggerRow
                     key={`${trigger.fromPackage}-${trigger.toPackage}`}
                     trigger={trigger}
                   />
                 ))}
-              </View>
+              </InsightSection>
             ) : null}
 
             {(data?.patterns.length ?? 0) > 0 ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>重复路径</Text>
+              <InsightSection title="重复路径">
                 {data?.patterns.map((pattern) => (
-                  <View key={pattern.pathLabel} style={styles.patternRow}>
-                    <Text style={styles.patternPath}>{pattern.pathLabel}</Text>
-                    <Text style={styles.patternMeta}>
-                      {pattern.occurrenceDays} 天 · {pattern.totalCount} 次
-                    </Text>
-                  </View>
+                  <PatternPathCard
+                    key={pattern.pathLabel}
+                    pathLabel={pattern.pathLabel}
+                    occurrenceDays={pattern.occurrenceDays}
+                    totalCount={pattern.totalCount}
+                  />
                 ))}
-              </View>
+              </InsightSection>
             ) : null}
 
             {productiveGoals.length > 0 ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>高效</Text>
+              <InsightSection title="高效">
                 {productiveGoals.slice(0, 5).map((goal) => (
                   <SessionGoalCard key={goal.sessionId} goal={goal} />
                 ))}
-              </View>
+              </InsightSection>
             ) : null}
 
             {notableGoals.length > 0 ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>留意</Text>
+              <InsightSection title="留意">
                 {notableGoals.slice(0, 5).map((goal) => (
                   <SessionGoalCard key={goal.sessionId} goal={goal} />
                 ))}
-              </View>
+              </InsightSection>
             ) : null}
           </>
         )}

@@ -1,56 +1,24 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { clearDemoData, isDemoDataLoaded, loadDemoData } from '../services/demoDataService';
 import { useThemedStyles } from '../hooks/useThemedStyles';
-import { radius, spacing } from '../theme';
+import { spacing, typography } from '../theme';
+import { SettingsGroup } from './settings/SettingsGroup';
+import { SettingsRow } from './settings/SettingsRow';
 
 export function DemoDataSection() {
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const styles = useThemedStyles(({ colors }) => ({
-    section: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
-      padding: spacing.md,
-      marginBottom: spacing.lg,
-    },
-    sectionTitle: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      marginBottom: spacing.sm,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    hint: {
+    footerNote: {
+      ...typography.caption,
       color: colors.textMuted,
-      fontSize: 13,
-      lineHeight: 20,
-      marginBottom: spacing.md,
-    },
-    button: {
-      borderRadius: radius.sm,
-      paddingVertical: spacing.sm,
-      alignItems: 'center',
-      marginBottom: spacing.sm,
-    },
-    primaryButton: {
-      backgroundColor: colors.accent,
-    },
-    primaryButtonText: {
-      color: colors.onAccent,
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    secondaryButton: {
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-    },
-    secondaryButtonText: {
-      color: colors.textPrimary,
-      fontSize: 15,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+      lineHeight: 18,
     },
   }));
 
@@ -105,28 +73,23 @@ export function DemoDataSection() {
   }
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>演示数据（开发）</Text>
-      <Text style={styles.hint}>
-        内置近 7 天假数据，覆盖解锁、App 切换、播客、触发器路径等，方便在模拟器预览 UI。
-        {loaded ? ' 当前已加载演示数据。' : ' 首次启动已自动加载。'}
+    <SettingsGroup title="开发者">
+      <Text style={styles.footerNote}>
+        内置近 7 天假数据，覆盖解锁、App 切换、播客等场景。
+        {loaded ? ' 当前已加载演示数据。' : ''}
       </Text>
-
-      <Pressable
-        style={[styles.button, styles.primaryButton]}
+      <SettingsRow
+        label="重新加载演示数据"
+        loading={loading}
         onPress={handleLoad}
-        disabled={loading}>
-        <Text style={styles.primaryButtonText}>
-          {loading ? '处理中…' : '重新加载演示数据'}
-        </Text>
-      </Pressable>
-
-      <Pressable
-        style={[styles.button, styles.secondaryButton]}
+      />
+      <SettingsRow
+        label="清除演示数据"
+        destructive
+        isLast
+        disabled={loading}
         onPress={handleClear}
-        disabled={loading}>
-        <Text style={styles.secondaryButtonText}>清除所有数据</Text>
-      </Pressable>
-    </View>
+      />
+    </SettingsGroup>
   );
 }

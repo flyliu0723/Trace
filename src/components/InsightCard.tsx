@@ -1,7 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import type { BehaviorInsight, InsightType } from '../analysis/insightEngine';
-import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { radius, spacing, typography } from '../theme';
 
@@ -15,33 +14,33 @@ const TYPE_LABELS: Record<InsightType, string> = {
   context: '场景',
 };
 
+const BADGE_PALETTE: Record<InsightType, { bg: string; text: string }> = {
+  summary: { bg: '#E8EDF9', text: '#4A69BB' },
+  highlight: { bg: '#E5EDE8', text: '#4A7A5E' },
+  trigger: { bg: '#F5EDE8', text: '#9A6B4A' },
+  pattern: { bg: '#EDE8F0', text: '#6B4A8A' },
+  session: { bg: '#E8EDF9', text: '#4A69BB' },
+  time: { bg: '#F5F0E5', text: '#8A734A' },
+  context: { bg: '#F5F0E5', text: '#8A734A' },
+};
+
 interface InsightCardProps {
   insight: BehaviorInsight;
   compact?: boolean;
 }
 
 export function InsightCard({ insight, compact = false }: InsightCardProps) {
-  const { colors } = useTheme();
+  const badge = BADGE_PALETTE[insight.type];
 
-  const TYPE_COLORS: Record<InsightType, string> = {
-    summary: colors.accent,
-    trigger: colors.quickSession,
-    pattern: colors.unlock,
-    session: colors.appForeground,
-    time: colors.warning,
-    highlight: colors.success,
-    context: colors.warning,
-  };
-
-  const styles = useThemedStyles(({ colors: c }) => ({
+  const styles = useThemedStyles(({ colors: c, shadows, isDark }) => ({
     card: {
-      backgroundColor: 'transparent',
+      backgroundColor: c.surface,
       borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: c.borderLight,
       marginRight: spacing.md,
       width: 280,
       overflow: 'hidden',
+      ...shadows.elevatedSubtle,
+      ...(isDark ? { borderWidth: 1, borderColor: c.borderLight } : {}),
     },
     cardCompact: {
       width: '100%',
@@ -55,19 +54,18 @@ export function InsightCard({ insight, compact = false }: InsightCardProps) {
     badge: {
       alignSelf: 'flex-start',
       borderRadius: radius.pill,
-      paddingHorizontal: spacing.sm + 2,
+      paddingHorizontal: 10,
       paddingVertical: 4,
+      backgroundColor: isDark ? badge.text + '22' : badge.bg,
     },
     badgeText: {
-      ...typography.label,
+      fontSize: 11,
       fontWeight: '600',
+      color: badge.text,
     },
     body: {
       padding: spacing.md,
       paddingTop: spacing.sm,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: c.border,
-      marginTop: spacing.sm,
     },
     title: {
       ...typography.subtitle,
@@ -87,8 +85,6 @@ export function InsightCard({ insight, compact = false }: InsightCardProps) {
     },
   }));
 
-  const accent = TYPE_COLORS[insight.type];
-
   const highlightKeywords = (text: string): React.ReactNode[] => {
     const parts = text.split(/(→|「[^」]+」|\d+[%次天项分钟小时]+)/g);
     return parts.map((part, index) => {
@@ -105,10 +101,10 @@ export function InsightCard({ insight, compact = false }: InsightCardProps) {
   };
 
   return (
-    <View style={[styles.card, compact && styles.cardCompact, { borderColor: accent + '44' }]}>
+    <View style={[styles.card, compact && styles.cardCompact]}>
       <View style={styles.topRow}>
-        <View style={[styles.badge, { backgroundColor: accent + '22' }]}>
-          <Text style={[styles.badgeText, { color: accent }]}>{TYPE_LABELS[insight.type]}</Text>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{TYPE_LABELS[insight.type]}</Text>
         </View>
       </View>
       <View style={styles.body}>

@@ -62,6 +62,48 @@ export interface WanderingDayView {
   date: string;
   summary: WanderingSummary;
   timeline: WanderingTimelineItem[];
+  focusApps: FocusAppChip[];
+}
+
+export interface FocusAppChip {
+  packageName: string;
+  appLabel: string;
+  durationMs: number;
+  sessionCount: number;
+}
+
+function buildFocusAppChips(entries: DiarySessionEntry[]): FocusAppChip[] {
+  const chipMap = new Map<string, FocusAppChip>();
+
+  for (const entry of entries) {
+    if (entry.mood.mood !== 'flow') {
+      continue;
+    }
+
+    const apps =
+      entry.appPath.length > 0
+        ? entry.appPath
+        : entry.mood.dominantApp
+          ? [{ packageName: entry.mood.dominantApp, appLabel: entry.mood.dominantApp }]
+          : [];
+
+    for (const app of apps) {
+      const existing = chipMap.get(app.packageName);
+      if (existing) {
+        existing.durationMs += entry.session.durationMs;
+        existing.sessionCount += 1;
+      } else {
+        chipMap.set(app.packageName, {
+          packageName: app.packageName,
+          appLabel: app.appLabel,
+          durationMs: entry.session.durationMs,
+          sessionCount: 1,
+        });
+      }
+    }
+  }
+
+  return [...chipMap.values()].sort((a, b) => b.durationMs - a.durationMs);
 }
 
 function toEpisode(
@@ -268,6 +310,7 @@ export function buildWanderingDayView(
     date,
     summary: buildSummary(episodes, events, bundles),
     timeline,
+    focusApps: buildFocusAppChips(entries),
   };
 }
 

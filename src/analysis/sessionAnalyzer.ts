@@ -2,7 +2,7 @@ import { QUICK_SESSION_THRESHOLD_MS } from '../constants';
 import type { BehaviorEvent, DailySummary, PhoneSession } from '../types/event';
 import { getTodayDateString } from '../utils/dateUtils';
 
-const MEDIA_PLAY_TYPES = new Set<BehaviorEvent['type']>(['media_start']);
+const MEDIA_PLAY_TYPES = new Set<BehaviorEvent['type']>(['media_start', 'media_track_change']);
 const MEDIA_END_TYPES = new Set<BehaviorEvent['type']>(['media_pause', 'media_stop']);
 
 export function getTodayDate(): string {
@@ -19,6 +19,9 @@ export function calculatePassiveMediaMs(events: BehaviorEvent[]): number {
   let playStart: number | null = null;
 
   for (const event of mediaEvents) {
+    if (event.type === 'media_track_change') {
+      continue;
+    }
     if (event.type === 'media_start') {
       if (playStart === null) {
         playStart = event.timestamp;

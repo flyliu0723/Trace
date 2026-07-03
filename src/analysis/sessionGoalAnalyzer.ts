@@ -64,7 +64,9 @@ function getSessionApps(session: PhoneSession): Array<{
 }
 
 function hasMediaOnly(session: PhoneSession): boolean {
-  const hasMedia = session.events.some((e) => e.type === 'media_start');
+  const hasMedia = session.events.some(
+    (e) => e.type === 'media_start' || e.type === 'media_track_change',
+  );
   const foregroundApps = session.events.filter((e) => e.type === 'app_foreground');
   return hasMedia && foregroundApps.length <= 1;
 }
@@ -119,13 +121,17 @@ export function analyzeSessionGoal(session: PhoneSession): SessionGoal {
 
   if (productiveApps.length > 0 && entertainmentApps.length === 0) {
     const names = productiveApps.map((a) => a.label).join('、');
+    const summary =
+      productiveApps.length === 1
+        ? `在 ${names} 上专注处理事务`
+        : `在 ${names} 上专注处理多项事务`;
     return {
       sessionId: session.id,
       startTime: session.startTime,
       endTime: session.endTime,
       durationMs: session.durationMs,
       goalType: 'productive',
-      summary: `完成了 ${productiveApps.length} 项事务：${names}`,
+      summary,
       taskCount: productiveApps.length,
       appLabels,
     };
@@ -140,7 +146,7 @@ export function analyzeSessionGoal(session: PhoneSession): SessionGoal {
         endTime: session.endTime,
         durationMs: session.durationMs,
         goalType: 'entertainment',
-        summary: `在 ${entertainmentApps[0].label} 沉浸了 ${formatDuration(session.durationMs)}`,
+        summary: `在 ${entertainmentApps[0].label} 上沉浸浏览`,
         taskCount: 0,
         appLabels,
       };

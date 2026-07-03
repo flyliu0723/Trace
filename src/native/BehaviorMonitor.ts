@@ -23,6 +23,8 @@ export interface BehaviorMonitorNative {
   refreshContextSensors(): Promise<boolean>;
   syncEvents(): Promise<BehaviorEvent[]>;
   reconcileEvents(sinceTimestamp: number): Promise<BehaviorEvent[]>;
+  reconcileMediaState(): Promise<BehaviorEvent[]>;
+  getActiveMediaPackages(): Promise<string[]>;
   resolveAppLabels(packageNames: string[]): Promise<Record<string, string>>;
   getAppIcons(packageNames: string[]): Promise<Record<string, string>>;
 }

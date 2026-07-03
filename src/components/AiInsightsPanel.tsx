@@ -35,6 +35,26 @@ const PERIODS: PeriodConfig[] = [
   { key: 'monthly', label: '本月', subtitle: '月度趋势与习惯演变', icon: 'albums-outline' },
 ];
 
+function AiUnconfiguredEmpty({ styles, colors }: {
+  styles: ReturnType<typeof useThemedStyles>;
+  colors: { accent: string };
+}) {
+  return (
+    <View style={styles.unconfiguredWrap}>
+      <View style={styles.unconfiguredGlowTop} />
+      <View style={styles.unconfiguredGlowBottom} />
+      <View style={styles.unconfiguredContent}>
+        <View style={styles.unconfiguredIcon}>
+          <Ionicons name="key-outline" size={16} color={colors.accent} />
+        </View>
+        <Text style={styles.unconfiguredText}>
+          让 AI 成为你的数字搭子。填入 API Key 即可唤醒每日意图分析与行为温柔解构。
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 export function AiInsightsPanel({
   aiConfigured,
   daily,
@@ -59,8 +79,9 @@ export function AiInsightsPanel({
     () => (activeState.content ? parseAiSummarySections(activeState.content) : []),
     [activeState.content],
   );
+  const showActions = aiConfigured && activeState.content && !activeState.loading;
 
-  const styles = useThemedStyles(({ colors: c }) => ({
+  const styles = useThemedStyles(({ colors: c, isDark }) => ({
     panel: {
       backgroundColor: c.surface,
       borderRadius: radius.lg,
@@ -173,6 +194,53 @@ export function AiInsightsPanel({
       color: c.textMuted,
       marginBottom: spacing.sm,
     },
+    unconfiguredWrap: {
+      borderRadius: radius.md,
+      overflow: 'hidden',
+      backgroundColor: isDark ? c.surfaceElevated : '#F4F7FF',
+      minHeight: 140,
+    },
+    unconfiguredGlowTop: {
+      position: 'absolute',
+      top: -24,
+      right: -16,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: isDark ? c.accent + '18' : '#FFFFFF',
+      opacity: isDark ? 1 : 0.9,
+    },
+    unconfiguredGlowBottom: {
+      position: 'absolute',
+      bottom: -32,
+      left: -20,
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: isDark ? c.accent + '10' : '#E8EDF9',
+      opacity: 0.7,
+    },
+    unconfiguredContent: {
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+    },
+    unconfiguredIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.pill,
+      backgroundColor: isDark ? c.accentSoft : '#E8EDF9',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    unconfiguredText: {
+      ...typography.caption,
+      color: isDark ? c.textSecondary : '#5C6370',
+      textAlign: 'center',
+      lineHeight: 22,
+      maxWidth: 280,
+    },
     emptyWrap: {
       alignItems: 'center',
       paddingVertical: spacing.lg,
@@ -259,15 +327,7 @@ export function AiInsightsPanel({
     }
 
     if (!aiConfigured) {
-      return (
-        <View style={styles.emptyWrap}>
-          <View style={styles.emptyIcon}>
-            <Ionicons name="key-outline" size={22} color={colors.accent} />
-          </View>
-          <Text style={styles.emptyTitle}>尚未配置 AI</Text>
-          <Text style={styles.emptyText}>前往 设置 → AI 填写 API Key 后，即可生成洞察报告。</Text>
-        </View>
-      );
+      return <AiUnconfiguredEmpty styles={styles} colors={colors} />;
     }
 
     if (!activeState.content) {
@@ -305,7 +365,7 @@ export function AiInsightsPanel({
             </View>
             <Text style={styles.headerTitle}>AI 洞察</Text>
           </View>
-          {activeState.content && !activeState.loading ? (
+          {showActions ? (
             <View style={styles.actions}>
               <Pressable
                 style={({ pressed }) => [styles.actionChip, pressed && styles.actionChipPressed]}
@@ -356,7 +416,7 @@ export function AiInsightsPanel({
 
       <View style={styles.body}>{renderBody()}</View>
 
-      {activeState.content && !activeState.loading ? (
+      {showActions ? (
         <Text style={styles.footerNote}>内容由 AI 生成，请结合下方数据详情理解</Text>
       ) : null}
     </View>

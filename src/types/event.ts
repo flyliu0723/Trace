@@ -7,11 +7,19 @@ export type EventType =
   | 'media_start'
   | 'media_stop'
   | 'media_pause'
+  | 'media_track_change'
   | 'activity_change'
   | 'posture_change';
 
 /** 事件来源 */
-export type EventSource = 'native' | 'usage_stats' | 'media_session' | 'reconcile' | 'demo';
+export type EventSource =
+  | 'native'
+  | 'usage_stats'
+  | 'media_session'
+  | 'reconcile'
+  | 'recovery'
+  | 'audio_playback'
+  | 'demo';
 
 /** 原始行为事件（事件流最小单元） */
 export interface BehaviorEvent {

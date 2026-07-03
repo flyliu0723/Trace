@@ -6,6 +6,7 @@ export {
   getEventsForDates,
   getEventsInRange,
   getLastEventTimestamp,
+  getOpenMediaPackageNames,
   getMislabeledPackageNames,
   getRecentEvents,
   getUnlockCountByDate,
@@ -22,6 +23,8 @@ export {
   setSetting,
   DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
+  getMonitorBannerDismissKey,
+  setMonitorBannerDismissKey,
 } from './settingsRepository';
 export type { AiConfig } from './settingsRepository';
 export { getCachedSummary, saveCachedSummary, deleteCachedSummary } from './summaryRepository';

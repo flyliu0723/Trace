@@ -1,102 +1,99 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import {
-  buildHourlyUnlockHeatmap,
-  getHeatmapColor,
-  getHeatmapOpacity,
-  type DailyUnlockCell,
-} from '../analysis/heatmapAnalyzer';
+import { buildHourlyUnlockHeatmap, type DailyUnlockCell } from '../analysis/heatmapAnalyzer';
+import { GhostSection } from './GhostSection';
 import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import type { BehaviorEvent } from '../types/event';
 import { formatDisplayDate } from '../utils/dateUtils';
-import { radius, spacing, typography } from '../theme';
+import { radius, spacing, tabularNums } from '../theme';
 
 interface UnlockHeatmapProps {
   events: BehaviorEvent[];
   weekData?: DailyUnlockCell[];
 }
 
-const RING_SIZE = 180;
-const RING_DOT = 10;
+const RING_SIZE = 148;
+const RING_GUIDE_INSET = 18;
+const BASE_DOT = 3;
 
 export function UnlockHeatmap({ events, weekData = [] }: UnlockHeatmapProps) {
   const { colors } = useTheme();
   const hourlyCells = buildHourlyUnlockHeatmap(events);
-  const maxHourly = Math.max(...hourlyCells.map((c) => c.count), 1);
-  const maxDaily = Math.max(...weekData.map((c) => c.count), 1);
+  const totalUnlocks = hourlyCells.reduce((sum, cell) => sum + cell.count, 0);
+  const maxHourly = Math.max(...hourlyCells.map((cell) => cell.count), 1);
+  const maxDaily = Math.max(...weekData.map((cell) => cell.count), 1);
 
   const styles = useThemedStyles(({ colors: c }) => ({
-    container: {
-      backgroundColor: c.surface,
-      borderRadius: radius.lg,
-      padding: spacing.lg,
-      marginBottom: spacing.lg,
-      borderWidth: 1,
-      borderColor: c.borderLight,
-    },
-    title: {
-      ...typography.subtitle,
-      color: c.textPrimary,
-      fontWeight: '600',
-      marginBottom: spacing.md,
-    },
-    weekSection: {
-      marginBottom: spacing.lg,
-    },
     weekRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      gap: spacing.xs,
+      alignItems: 'flex-end',
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+      paddingHorizontal: spacing.xs,
     },
-    weekCellWrap: {
+    weekCell: {
       flex: 1,
       alignItems: 'center',
+      gap: spacing.sm,
     },
-    starField: {
-      width: 36,
-      height: 28,
-      position: 'relative',
-      marginBottom: spacing.xs,
+    capsuleTrack: {
+      width: '100%',
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
     },
-    star: {
-      position: 'absolute',
-      width: 5,
-      height: 5,
+    capsule: {
+      width: 6,
       borderRadius: 3,
+      minHeight: 4,
     },
     weekLabel: {
-      color: c.textMuted,
       fontSize: 10,
-    },
-    weekCount: {
-      ...typography.label,
-      color: c.textSecondary,
-      marginTop: 2,
+      color: c.labelSecondary,
+      fontWeight: '500',
     },
     ringWrap: {
       width: RING_SIZE,
       height: RING_SIZE,
       alignSelf: 'center',
       position: 'relative',
-      marginVertical: spacing.md,
+      marginBottom: spacing.md,
+    },
+    ringGuide: {
+      position: 'absolute',
+      top: RING_GUIDE_INSET,
+      left: RING_GUIDE_INSET,
+      width: RING_SIZE - RING_GUIDE_INSET * 2,
+      height: RING_SIZE - RING_GUIDE_INSET * 2,
+      borderRadius: (RING_SIZE - RING_GUIDE_INSET * 2) / 2,
+      borderWidth: 1,
+      borderColor: c.ghostBorder,
+      borderStyle: 'dashed',
     },
     ringCenter: {
       position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: [{ translateX: -40 }, { translateY: -28 }],
-      width: 80,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       alignItems: 'center',
+      justifyContent: 'center',
     },
-    ringCenterValue: {
-      ...typography.statHero,
-      fontSize: 36,
-      color: c.textPrimary,
+    ringValue: {
+      fontSize: 28,
+      fontWeight: '800',
+      color: c.statInk,
+      letterSpacing: -0.8,
+      ...tabularNums,
     },
-    ringCenterLabel: {
-      ...typography.label,
-      color: c.textMuted,
+    ringUnit: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: c.labelSecondary,
+      marginTop: 2,
+      letterSpacing: 1,
     },
     ringDot: {
       position: 'absolute',
@@ -104,67 +101,61 @@ export function UnlockHeatmap({ events, weekData = [] }: UnlockHeatmapProps) {
     ringLegend: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: spacing.md,
     },
     legendText: {
-      ...typography.label,
-      color: c.textMuted,
-      ...typography.mono,
+      fontSize: 10,
+      color: c.labelSecondary,
+      fontWeight: '500',
+      ...tabularNums,
     },
   }));
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>解锁</Text>
+  const orbitRadius = RING_SIZE / 2 - RING_GUIDE_INSET - 2;
 
+  return (
+    <GhostSection title="解锁节律" subtitle="24 小时注意力触点">
       {weekData.length > 0 ? (
-        <View style={styles.weekSection}>
-          <View style={styles.weekRow}>
-            {weekData.map((cell) => {
-              const starCount = Math.min(cell.count, 5);
-              return (
-                <View key={cell.date} style={styles.weekCellWrap}>
-                  <View style={styles.starField}>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.star,
-                          {
-                            backgroundColor: getHeatmapColor(cell.count, maxDaily, colors),
-                            opacity: i < starCount ? getHeatmapOpacity(cell.count, maxDaily) : 0.08,
-                            top: (i % 3) * 6 + 2,
-                            left: (i % 2) * 8 + 4,
-                          },
-                        ]}
-                      />
-                    ))}
-                  </View>
-                  <Text style={styles.weekLabel} numberOfLines={1}>
-                    {formatDisplayDate(cell.date).replace(/今天\s/, '').slice(0, 4)}
-                  </Text>
-                  <Text style={styles.weekCount}>{cell.count}</Text>
+        <View style={styles.weekRow}>
+          {weekData.map((cell) => {
+            const ratio = maxDaily > 0 ? cell.count / maxDaily : 0;
+            const barHeight = Math.max(4, ratio * 32);
+            const active = cell.count > 0;
+            return (
+              <View key={cell.date} style={styles.weekCell}>
+                <View style={styles.capsuleTrack}>
+                  <View
+                    style={[
+                      styles.capsule,
+                      {
+                        height: barHeight,
+                        backgroundColor: active ? colors.morandiUnlock : colors.heatEmpty,
+                        opacity: active ? 0.72 + ratio * 0.28 : 1,
+                      },
+                    ]}
+                  />
                 </View>
-              );
-            })}
-          </View>
+                <Text style={styles.weekLabel} numberOfLines={1}>
+                  {formatDisplayDate(cell.date).replace(/今天\s/, '').slice(-2)}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       ) : null}
 
       <View style={styles.ringWrap}>
+        <View style={styles.ringGuide} />
         <View style={styles.ringCenter}>
-          <Text style={styles.ringCenterValue}>
-            {hourlyCells.reduce((sum, c) => sum + c.count, 0)}
-          </Text>
-          <Text style={styles.ringCenterLabel}>次</Text>
+          <Text style={styles.ringValue}>{totalUnlocks}</Text>
+          <Text style={styles.ringUnit}>次</Text>
         </View>
         {hourlyCells.map((cell) => {
           const angle = (cell.hour / 24) * 2 * Math.PI - Math.PI / 2;
-          const radiusPx = RING_SIZE / 2 - RING_DOT;
-          const x = Math.cos(angle) * radiusPx + RING_SIZE / 2 - RING_DOT / 2;
-          const y = Math.sin(angle) * radiusPx + RING_SIZE / 2 - RING_DOT / 2;
-          const size = RING_DOT + (cell.count / maxHourly) * 6;
-          const heatColor = getHeatmapColor(cell.count, maxHourly, colors);
+          const dotSize = BASE_DOT + (cell.count / maxHourly) * 3;
+          const x = Math.cos(angle) * orbitRadius + RING_SIZE / 2 - dotSize / 2;
+          const y = Math.sin(angle) * orbitRadius + RING_SIZE / 2 - dotSize / 2;
+          const active = cell.count > 0;
 
           return (
             <View
@@ -172,28 +163,26 @@ export function UnlockHeatmap({ events, weekData = [] }: UnlockHeatmapProps) {
               style={[
                 styles.ringDot,
                 {
-                  width: size,
-                  height: size,
-                  borderRadius: size / 2,
+                  width: dotSize,
+                  height: dotSize,
+                  borderRadius: dotSize / 2,
                   left: x,
                   top: y,
-                  backgroundColor: heatColor,
-                  opacity: getHeatmapOpacity(cell.count, maxHourly),
-                  ...(cell.count > 0
-                    ? { shadowColor: heatColor, shadowOpacity: 0.6, shadowRadius: 4 }
-                    : {}),
+                  backgroundColor: active ? colors.morandiUnlock : colors.heatEmpty,
+                  opacity: active ? 0.55 + (cell.count / maxHourly) * 0.45 : 1,
                 },
               ]}
             />
           );
         })}
       </View>
+
       <View style={styles.ringLegend}>
-        <Text style={styles.legendText}>0时</Text>
-        <Text style={styles.legendText}>6时</Text>
-        <Text style={styles.legendText}>12时</Text>
-        <Text style={styles.legendText}>18时</Text>
+        <Text style={styles.legendText}>0</Text>
+        <Text style={styles.legendText}>6</Text>
+        <Text style={styles.legendText}>12</Text>
+        <Text style={styles.legendText}>18</Text>
       </View>
-    </View>
+    </GhostSection>
   );
 }

@@ -13,7 +13,7 @@ import { radius, spacing } from '../theme';
 
 export function HourlyScreen() {
   const { colors } = useTheme();
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, dataRevision } = useSelectedDate();
   const [hourlySlots, setHourlySlots] = useState<ReturnType<typeof buildHourlyTopApps>>([]);
   const [loading, setLoading] = useState(true);
 
@@ -69,7 +69,7 @@ export function HourlyScreen() {
   const loadData = useCallback(async () => {
     const events = await getEventsByDate(selectedDate);
     setHourlySlots(buildHourlyTopApps(events));
-  }, [selectedDate]);
+  }, [selectedDate, dataRevision]);
 
   useEffect(() => {
     setLoading(true);

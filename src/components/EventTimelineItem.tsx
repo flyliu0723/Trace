@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
+import { resolveMediaContextLabel } from '../analysis/contextMediaAnalyzer';
 import { classifyApp, getCategoryColor } from '../analysis/appClassifier';
 import { formatTime, formatMediaSubtitle } from '../analysis/sessionAnalyzer';
 import { useTheme } from '../context/ThemeContext';
@@ -15,6 +16,7 @@ const EVENT_LABELS: Record<BehaviorEvent['type'], string> = {
   app_foreground: '打开',
   app_background: '后台',
   media_start: '播放',
+  media_track_change: '切集',
   media_pause: '暂停',
   media_stop: '停止',
   activity_change: '运动',
@@ -27,6 +29,7 @@ const EVENT_ICONS: Record<BehaviorEvent['type'], string> = {
   app_foreground: '开',
   app_background: '退',
   media_start: '播',
+  media_track_change: '集',
   media_pause: '停',
   media_stop: '止',
   activity_change: '动',
@@ -61,22 +64,37 @@ function formatContextSubtitle(event: BehaviorEvent): string | null {
   return null;
 }
 
+const MEDIA_EVENT_TYPES = new Set<BehaviorEvent['type']>([
+  'media_start',
+  'media_track_change',
+  'media_pause',
+  'media_stop',
+]);
+
 interface EventTimelineItemProps {
   event: BehaviorEvent;
   isLast?: boolean;
+  /** 用于推断媒体事件的行进/步行上下文 */
+  contextEvents?: BehaviorEvent[];
 }
 
-export function EventTimelineItem({ event, isLast = false }: EventTimelineItemProps) {
+export function EventTimelineItem({ event, isLast = false, contextEvents }: EventTimelineItemProps) {
   const { colors } = useTheme();
+
+  const mediaContextLabel =
+    contextEvents && MEDIA_EVENT_TYPES.has(event.type)
+      ? resolveMediaContextLabel(contextEvents, event.timestamp)
+      : null;
 
   const EVENT_COLORS: Record<BehaviorEvent['type'], string> = {
     unlock: colors.unlock,
     screen_off: colors.screenOff,
     app_foreground: colors.appForeground,
     app_background: colors.textMuted,
-    media_start: colors.media,
-    media_stop: colors.media,
-    media_pause: colors.media,
+    media_start: mediaContextLabel === '行进中' ? colors.accent : mediaContextLabel === '步行中' ? colors.quickSession : colors.media,
+    media_track_change: mediaContextLabel === '行进中' ? colors.accent : mediaContextLabel === '步行中' ? colors.quickSession : colors.media,
+    media_stop: mediaContextLabel === '行进中' ? colors.accent : mediaContextLabel === '步行中' ? colors.quickSession : colors.media,
+    media_pause: mediaContextLabel === '行进中' ? colors.accent : mediaContextLabel === '步行中' ? colors.quickSession : colors.media,
     activity_change: colors.quickSession,
     posture_change: colors.warning,
   };
@@ -150,6 +168,17 @@ export function EventTimelineItem({ event, isLast = false }: EventTimelineItemPr
       fontWeight: '500',
       flex: 1,
     },
+    contextBadge: {
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+    },
+    contextBadgeText: {
+      ...typography.label,
+      fontSize: 10,
+      fontWeight: '600',
+    },
     mediaSubtitle: {
       ...typography.caption,
       color: c.textMuted,
@@ -180,6 +209,18 @@ export function EventTimelineItem({ event, isLast = false }: EventTimelineItemPr
           <View style={[styles.capsule, { backgroundColor: accent + '22', borderColor: accent + '44' }]}>
             <Text style={[styles.capsuleText, { color: accent }]}>{EVENT_LABELS[event.type]}</Text>
           </View>
+          {mediaContextLabel ? (
+            <View
+              style={[
+                styles.contextBadge,
+                {
+                  backgroundColor: accent + '18',
+                  borderColor: accent + '44',
+                },
+              ]}>
+              <Text style={[styles.contextBadgeText, { color: accent }]}>{mediaContextLabel}</Text>
+            </View>
+          ) : null}
         </View>
         {hasApp ? (
           <View style={styles.appRow}>
