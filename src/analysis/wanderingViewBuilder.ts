@@ -4,6 +4,7 @@ import { formatDuration, formatTime } from './sessionAnalyzer';
 import { analyzeSwitchChains, type SwitchChain } from './switchChainAnalyzer';
 import type { DiarySessionEntry } from './diarySessionBuilder';
 import { buildDiarySessions } from './diarySessionBuilder';
+import type { AppDwellBlock } from './pathAnalyzer';
 import { generateDayStingLine, generateEpisodeStingLine } from './wanderingCopywriter';
 import { findRepeatedWanderingSessionIds } from './wanderingRepeatAnalyzer';
 
@@ -28,6 +29,7 @@ export interface WanderingEpisode {
   endTime: number;
   durationMs: number;
   apps: Array<{ packageName: string; appLabel: string }>;
+  appBlocks: AppDwellBlock[];
   switchCount: number;
   isRepeatedPath: boolean;
   stingLine: string;
@@ -110,7 +112,7 @@ function toEpisode(
   entry: DiarySessionEntry,
   repeatedSessionIds: Set<string>,
 ): WanderingEpisode {
-  const { session, mood, appPath } = entry;
+  const { session, mood, appPath, appBlocks } = entry;
   const isRepeatedPath = repeatedSessionIds.has(session.id);
 
   return {
@@ -119,6 +121,7 @@ function toEpisode(
     endTime: session.endTime,
     durationMs: session.durationMs,
     apps: appPath,
+    appBlocks,
     switchCount: mood.switchCount,
     isRepeatedPath,
     stingLine: generateEpisodeStingLine(

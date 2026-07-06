@@ -13,6 +13,7 @@ import { isOnboardingCompleted, setOnboardingCompleted } from './src/db';
 import { RootStackNavigator } from './src/navigation/RootStackNavigator';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ensureDemoDataInDev } from './src/services/demoDataService';
+import { initAppCategoryOverrides } from './src/services/appCategoryOverrides';
 import { scheduleBackgroundSync } from './src/services/syncCoordinator';
 
 function AppContent() {
@@ -21,6 +22,7 @@ function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const bootstrap = useCallback(async () => {
+    await initAppCategoryOverrides();
     await ensureDemoDataInDev();
 
     let completed = await isOnboardingCompleted();

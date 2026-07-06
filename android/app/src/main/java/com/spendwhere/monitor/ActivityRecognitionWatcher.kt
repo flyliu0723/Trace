@@ -29,6 +29,7 @@ object ActivityRecognitionWatcher {
       listOf(
         DetectedActivity.WALKING,
         DetectedActivity.RUNNING,
+        DetectedActivity.ON_FOOT,
         DetectedActivity.STILL,
         DetectedActivity.IN_VEHICLE,
       )

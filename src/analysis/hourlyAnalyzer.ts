@@ -1,6 +1,9 @@
 import { LONG_DWELL_THRESHOLD_MS } from '../constants';
 import type { BehaviorEvent } from '../types/event';
+import { buildForegroundPeriods, type ForegroundPeriod } from './foregroundPeriodAnalyzer';
 import { formatTime } from './sessionAnalyzer';
+
+export type { ForegroundPeriod };
 
 export interface HourlyLongDwell {
   packageName: string;
@@ -19,68 +22,10 @@ export interface HourlyAppSlot {
   longDwells: HourlyLongDwell[];
 }
 
-interface ForegroundPeriod {
-  packageName: string;
-  appLabel: string;
-  startTime: number;
-  endTime: number;
-}
-
 interface HourAppStats {
   label: string;
   openCount: number;
   durationMs: number;
-}
-
-/** 从事件流重建 App 前台连续停留时段 */
-function buildForegroundPeriods(events: BehaviorEvent[]): ForegroundPeriod[] {
-  const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp);
-  const periods: ForegroundPeriod[] = [];
-  let current: { packageName: string; appLabel: string; startTime: number } | null = null;
-
-  const closeCurrent = (endTime: number) => {
-    if (!current || endTime <= current.startTime) {
-      current = null;
-      return;
-    }
-    periods.push({
-      packageName: current.packageName,
-      appLabel: current.appLabel,
-      startTime: current.startTime,
-      endTime,
-    });
-    current = null;
-  };
-
-  for (const event of sorted) {
-    if (event.type === 'unlock' || event.type === 'screen_off') {
-      closeCurrent(event.timestamp);
-      continue;
-    }
-
-    if (event.type !== 'app_foreground' || !event.appLabel) {
-      continue;
-    }
-
-    const packageName = event.packageName ?? event.appLabel;
-    if (current?.packageName === packageName) {
-      continue;
-    }
-
-    closeCurrent(event.timestamp);
-    current = {
-      packageName,
-      appLabel: event.appLabel,
-      startTime: event.timestamp,
-    };
-  }
-
-  if (current) {
-    const fallbackEnd = sorted[sorted.length - 1]?.timestamp ?? current.startTime;
-    closeCurrent(fallbackEnd);
-  }
-
-  return periods;
 }
 
 function getHourBounds(referenceTimestamp: number, hour: number): { start: number; end: number } {

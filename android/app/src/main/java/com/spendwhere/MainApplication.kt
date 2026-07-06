@@ -15,12 +15,14 @@ class MainApplication : Application(), ReactApplication {
       packageList =
         PackageList(this).packages.apply {
           add(com.spendwhere.monitor.BehaviorMonitorPackage())
+          add(com.spendwhere.share.ReceiptSharePackage())
         },
     )
   }
 
   override fun onCreate() {
     super.onCreate()
+    com.spendwhere.monitor.EventStore.init(applicationContext)
     loadReactNative(this)
   }
 }

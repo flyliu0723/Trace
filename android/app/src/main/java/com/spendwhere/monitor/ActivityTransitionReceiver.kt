@@ -28,7 +28,11 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
         MonitorEvent(
           type = "activity_change",
           timestamp = System.currentTimeMillis(),
-          metadata = mapOf("activity" to activity),
+          metadata =
+            mapOf(
+              "activity" to activity,
+              "detector" to "google",
+            ),
           source = "native",
         ),
       )

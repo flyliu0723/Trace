@@ -9,7 +9,9 @@ export type EventType =
   | 'media_pause'
   | 'media_track_change'
   | 'activity_change'
-  | 'posture_change';
+  | 'posture_change'
+  | 'service_start'
+  | 'service_stop';
 
 /** 事件来源 */
 export type EventSource =
@@ -19,6 +21,7 @@ export type EventSource =
   | 'reconcile'
   | 'recovery'
   | 'audio_playback'
+  | 'service'
   | 'demo';
 
 /** 原始行为事件（事件流最小单元） */

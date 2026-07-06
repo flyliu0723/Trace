@@ -55,6 +55,68 @@ export function getWeekDatesMondayToSunday(weekMonday: string): string[] {
   return dates;
 }
 
+/** 获取指定日期所在周的周日 */
+export function getSundayOfWeek(dateStr: string): string {
+  return addDays(getMondayOfWeek(dateStr), 6);
+}
+
+/** 获取月初（YYYY-MM-01） */
+export function getFirstDayOfMonth(dateStr: string): string {
+  const date = new Date(`${dateStr}T12:00:00`);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}-01`;
+}
+
+/** 获取月末（YYYY-MM-DD） */
+export function getLastDayOfMonth(dateStr: string): string {
+  const date = new Date(`${dateStr}T12:00:00`);
+  const last = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  const year = last.getFullYear();
+  const month = String(last.getMonth() + 1).padStart(2, '0');
+  const day = String(last.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** 是否属于当前自然月 */
+export function isCurrentMonth(dateStr: string): boolean {
+  const today = getTodayDateString();
+  return getFirstDayOfMonth(dateStr) === getFirstDayOfMonth(today);
+}
+
+/** 自然月内所有日期（当前月截至今天，历史月截至月末） */
+export function getMonthDateStrings(dateStr: string): string[] {
+  const first = getFirstDayOfMonth(dateStr);
+  const last = isCurrentMonth(dateStr) ? getTodayDateString() : getLastDayOfMonth(dateStr);
+  const dates: string[] = [];
+  for (let current = first; current <= last; current = addDays(current, 1)) {
+    dates.push(current);
+  }
+  return dates;
+}
+
+/** 格式化为「3月1日—3月31日」或「3月1日—今天」 */
+export function formatMonthRangeLabel(dateStr: string): string {
+  const first = getFirstDayOfMonth(dateStr);
+  const last = isCurrentMonth(dateStr) ? getTodayDateString() : getLastDayOfMonth(dateStr);
+  const fmt = (d: string) => {
+    const date = new Date(`${d}T12:00:00`);
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  };
+  const endLabel = isCurrentMonth(dateStr) && last === getTodayDateString() ? '今天' : fmt(last);
+  return `${fmt(first)}—${endLabel}`;
+}
+
+/** 格式化为「3月3日—3月9日」周区间 */
+export function formatWeekRangeLabel(weekMonday: string): string {
+  const sunday = addDays(weekMonday, 6);
+  const fmt = (d: string) => {
+    const date = new Date(`${d}T12:00:00`);
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  };
+  return `${fmt(weekMonday)}—${fmt(sunday)}`;
+}
+
 /** 判断日期是否落在以 weekMonday 为起点的自然周内 */
 export function isDateInWeek(dateStr: string, weekMonday: string): boolean {
   const weekSunday = addDays(weekMonday, 6);

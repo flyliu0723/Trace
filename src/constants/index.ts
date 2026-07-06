@@ -1,5 +1,5 @@
 /** 应用版本号（与 package.json 保持同步） */
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '0.1.1';
 
 /** 一小时的毫秒数 */
 export const HOUR_MS = 60 * 60_000;
@@ -9,6 +9,12 @@ export const QUICK_SESSION_THRESHOLD_MS = 20_000;
 
 /** 解锁到首个 App 的空档阈值（毫秒） */
 export const IDLE_GAP_THRESHOLD_MS = 5_000;
+
+/** 前台 App 无新前台事件时的最长估算停留（毫秒），避免手机放下后虚高 */
+export const FOREGROUND_IDLE_CAP_MS = 5 * 60_000;
+
+/** 媒体暂停后视为同一段收听的最大间隔（毫秒） */
+export const MEDIA_PAUSE_MERGE_GAP_MS = 60_000;
 
 /** 前台服务通知渠道 */
 export const MONITOR_NOTIFICATION_CHANNEL_ID = 'spendwhere_monitor';
@@ -28,6 +34,24 @@ export const FIRST_INSTALL_RECONCILE_LOOKBACK_MS = 4 * 60 * 60 * 1000;
 /** 对账时间重叠（毫秒），避免边界事件遗漏 */
 export const RECONCILE_OVERLAP_MS = 60_000;
 
+/** 有内存积压时缩短同步节流（毫秒） */
+export const PENDING_SYNC_DEBOUNCE_MS = 5_000;
+
+/** 默认同步节流（毫秒） */
+export const DEFAULT_SYNC_DEBOUNCE_MS = 30_000;
+
+/** 手动历史对账可选天数 */
+export const MANUAL_RECONCILE_DAY_OPTIONS = [1, 3, 7] as const;
+
+/** 日级可信度：采集/系统时长比值下限（良好） */
+export const CREDIBILITY_GOOD_RATIO = 0.7;
+
+/** 日级可信度：采集/系统时长比值下限（一般） */
+export const CREDIBILITY_FAIR_RATIO = 0.4;
+
+/** 首页展示可信度 Banner 的最低等级 */
+export const CREDIBILITY_BANNER_LEVELS = ['fair', 'poor'] as const;
+
 /** 日记列表每页加载会话数 */
 export const DIARY_PAGE_SIZE = 30;
 
@@ -40,11 +64,29 @@ export const LONG_DWELL_THRESHOLD_MS = 5 * 60_000;
 /** 不健康行为最短持续时长（毫秒） */
 export const UNHEALTHY_BEHAVIOR_MIN_DURATION_MS = 2 * 60_000;
 
+/** 娱乐单次沉迷阈值（毫秒） */
+export const ENTERTAINMENT_DEEP_BROWSE_THRESHOLD_MS = 30 * 60_000;
+
+/** 娱乐无意识短浏览上限（毫秒） */
+export const ENTERTAINMENT_IMPULSIVE_BROWSE_MAX_MS = 2 * 60_000;
+
+/** 阅读沉浸式连续阅读阈值（毫秒） */
+export const READING_IMMERSION_THRESHOLD_MS = 15 * 60_000;
+
+/** 购物决策停留阈值（毫秒） */
+export const SHOPPING_DECISION_THRESHOLD_MS = 5 * 60_000;
+
+/** 估算每次主动打开播放器的前台操作时长（毫秒），用于伴随率 */
+export const PODCAST_ESTIMATED_ACTIVE_OPEN_MS = 45_000;
+
 /** 上下文媒体片段最短展示时长（毫秒） */
 export const CONTEXT_MEDIA_MIN_SEGMENT_MS = 60_000;
 
 /** 媒体片段归属某运动上下文的占比阈值（0-1） */
 export const CONTEXT_MEDIA_COVERAGE_THRESHOLD = 0.5;
+
+/** 计步传感器：每分钟步数增量达到此值视为步行（与原生 StepCounterWatcher 对齐） */
+export const STEP_COUNTER_WALKING_DELTA_PER_MIN = 20;
 
 /** 片段内上下文占比阈值（0-1） */
 export const CONTEXT_COVERAGE_THRESHOLD = 0.7;
@@ -84,3 +126,15 @@ export const WANDERING_SHAKE_SWITCH_THRESHOLD = 6;
 
 /** 跨日重复路径判定的最短 App 路径长度 */
 export const WANDERING_REPEAT_MIN_PATH_LENGTH = 3;
+
+/** 日结小票：展示 Top N 个 App */
+export const RECEIPT_SHARE_TOP_N = 8;
+
+/** 周结小票：展示 Top N 个 App */
+export const RECEIPT_SHARE_WEEKLY_TOP_N = 10;
+
+/** 日结小票：单独列出 App 的最低前台时长（毫秒） */
+export const RECEIPT_SHARE_MIN_DURATION_MS = 2 * 60_000;
+
+/** 日结小票：单独列出 App 的最低进入次数 */
+export const RECEIPT_SHARE_MIN_VISIT_COUNT = 2;

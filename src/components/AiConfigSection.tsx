@@ -13,6 +13,7 @@ import {
   saveAiConfig,
   type AiConfig,
 } from '../db';
+import { testAiConnection } from '../services/aiSummaryService';
 import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { radius, spacing } from '../theme';
@@ -26,6 +27,7 @@ export function AiConfigSection() {
   });
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const styles = useThemedStyles(({ colors }) => ({
     section: {
@@ -58,6 +60,25 @@ export function AiConfigSection() {
       alignItems: 'center',
       marginTop: spacing.lg,
     },
+    buttonRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+    },
+    testButton: {
+      flex: 1,
+      borderRadius: radius.sm,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceElevated,
+    },
+    testButtonText: {
+      color: colors.textPrimary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
     saveButtonText: {
       color: colors.onAccent,
       fontSize: 15,
@@ -74,6 +95,18 @@ export function AiConfigSection() {
   React.useEffect(() => {
     loadConfig().catch(console.error);
   }, [loadConfig]);
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const reply = await testAiConnection(config);
+      Alert.alert('连接成功', reply.slice(0, 120));
+    } catch (error) {
+      Alert.alert('连接失败', String(error));
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -127,9 +160,14 @@ export function AiConfigSection() {
         autoCorrect={false}
       />
 
-      <Pressable style={styles.saveButton} onPress={handleSave} disabled={saving}>
-        <Text style={styles.saveButtonText}>{saving ? '保存中' : '保存'}</Text>
-      </Pressable>
+      <View style={styles.buttonRow}>
+        <Pressable style={styles.testButton} onPress={handleTest} disabled={testing || saving}>
+          <Text style={styles.testButtonText}>{testing ? '测试中…' : '测试连接'}</Text>
+        </Pressable>
+        <Pressable style={[styles.saveButton, { flex: 1, marginTop: 0 }]} onPress={handleSave} disabled={saving || testing}>
+          <Text style={styles.saveButtonText}>{saving ? '保存中' : '保存'}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

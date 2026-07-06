@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
 import { AiSettingsScreen } from '../screens/AiSettingsScreen';
+import { AppCategoriesScreen } from '../screens/AppCategoriesScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import type { SettingsStackParamList } from './types';
 
@@ -22,6 +23,17 @@ export function SettingsNavigator() {
         options={{
           headerShown: true,
           title: 'AI 总结助手',
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="AppCategories"
+        component={AppCategoriesScreen}
+        options={{
+          headerShown: true,
+          title: 'App 分类',
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,
           headerShadowVisible: false,

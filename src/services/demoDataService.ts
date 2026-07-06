@@ -7,7 +7,7 @@ import {
   DEMO_WEEKLY_AI_SUMMARY,
   generateDemoEvents,
 } from '../demo/generateDemoData';
-import { getTodayDateString } from '../utils/dateUtils';
+import { getFirstDayOfMonth, getMondayOfWeek, getTodayDateString } from '../utils/dateUtils';
 
 const DEMO_DATA_KEY = 'demo_data_loaded';
 
@@ -28,9 +28,11 @@ export async function loadDemoData(): Promise<number> {
   const inserted = await insertEvents(events);
 
   const today = getTodayDateString();
+  const weekMonday = getMondayOfWeek(today);
+  const monthAnchor = getFirstDayOfMonth(today);
   await saveCachedSummary(today, 'daily', DEMO_DAILY_AI_SUMMARY);
-  await saveCachedSummary(today, 'weekly', DEMO_WEEKLY_AI_SUMMARY);
-  await saveCachedSummary(today, 'monthly', DEMO_MONTHLY_AI_SUMMARY);
+  await saveCachedSummary(weekMonday, 'weekly', DEMO_WEEKLY_AI_SUMMARY);
+  await saveCachedSummary(monthAnchor, 'monthly', DEMO_MONTHLY_AI_SUMMARY);
 
   await setDemoDataLoaded(true);
   return inserted;
@@ -40,7 +42,11 @@ export async function loadDemoData(): Promise<number> {
 export async function clearDemoData(): Promise<void> {
   await clearAllEvents();
   const today = getTodayDateString();
+  const weekMonday = getMondayOfWeek(today);
+  const monthAnchor = getFirstDayOfMonth(today);
   await deleteCachedSummary(today, 'daily');
+  await deleteCachedSummary(weekMonday, 'weekly');
+  await deleteCachedSummary(monthAnchor, 'monthly');
   await deleteCachedSummary(today, 'weekly');
   await deleteCachedSummary(today, 'monthly');
   await setDemoDataLoaded(false);

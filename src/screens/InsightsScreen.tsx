@@ -28,7 +28,9 @@ import { useSelectedDate } from '../context/DateContext';
 import { useTheme } from '../context/ThemeContext';
 import {
   getAiConfig,
+  getCachedMonthlySummary,
   getCachedSummary,
+  getCachedWeeklySummary,
   getEventsByDate,
   getEventsForDates,
   isAiConfigured,
@@ -38,7 +40,14 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 import { generateDailyAiSummary, generateMonthlyAiSummary, generateWeeklyAiSummary } from '../services/aiSummaryService';
 import { ensureSynced } from '../services/syncCoordinator';
 import type { BehaviorEvent } from '../types/event';
-import { getDateStringsEndingAt, isToday, addDays } from '../utils/dateUtils';
+import {
+  addDays,
+  getFirstDayOfMonth,
+  getMondayOfWeek,
+  getMonthDateStrings,
+  getWeekDatesMondayToSunday,
+  isToday,
+} from '../utils/dateUtils';
 import type { SessionGoal } from '../analysis/sessionGoalAnalyzer';
 import type { RootTabParamList } from '../navigation/types';
 import { spacing, typography } from '../theme';
@@ -77,16 +86,30 @@ export function InsightsScreen() {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    insightScrollView: {
+      flexGrow: 0,
+      marginBottom: spacing.md,
+    },
     insightScroll: {
       paddingRight: spacing.md,
       paddingBottom: spacing.sm,
-      marginBottom: spacing.md,
+    },
+    emptyDataSection: {
+      alignItems: 'center',
+      paddingVertical: spacing.xl,
+      gap: spacing.xs,
     },
     empty: {
       color: c.textMuted,
       fontSize: 14,
       textAlign: 'center',
-      paddingVertical: spacing.xl,
+    },
+    emptyHint: {
+      ...typography.caption,
+      color: c.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+      paddingHorizontal: spacing.lg,
     },
     dataSectionHeader: {
       flexDirection: 'row',
@@ -108,14 +131,16 @@ export function InsightsScreen() {
     },
   }));
 
-  const weekDates = useMemo(() => getDateStringsEndingAt(selectedDate, 7), [selectedDate]);
-  const monthDates = useMemo(() => getDateStringsEndingAt(selectedDate, 30), [selectedDate]);
+  const weekMonday = useMemo(() => getMondayOfWeek(selectedDate), [selectedDate]);
+  const weekDates = useMemo(() => getWeekDatesMondayToSunday(weekMonday), [weekMonday]);
+  const monthAnchor = useMemo(() => getFirstDayOfMonth(selectedDate), [selectedDate]);
+  const monthDates = useMemo(() => getMonthDateStrings(selectedDate), [selectedDate]);
   const wanderingView = useMemo(
     () => buildWanderingDayView(selectedDate, dayEvents, { yesterdayEvents }),
     [dayEvents, selectedDate, yesterdayEvents],
   );
-  const weekEndDate = weekDates[weekDates.length - 1] ?? selectedDate;
-  const monthEndDate = monthDates[monthDates.length - 1] ?? selectedDate;
+  const hasMeaningfulDayData = dayEvents.length > 0;
+  const insightCards = data?.insights ?? [];
 
   const loadData = useCallback(async (options?: { forceSync?: boolean }) => {
     if (isToday(selectedDate)) {
@@ -138,14 +163,14 @@ export function InsightsScreen() {
     const [configured, cachedDaily, cachedWeekly, cachedMonthly] = await Promise.all([
       isAiConfigured(),
       getCachedSummary(selectedDate, 'daily'),
-      getCachedSummary(weekEndDate, 'weekly'),
-      getCachedSummary(monthEndDate, 'monthly'),
+      getCachedWeeklySummary(selectedDate),
+      getCachedMonthlySummary(selectedDate),
     ]);
     setAiConfigured(configured);
     setDailyAiSummary(cachedDaily);
     setWeeklyAiSummary(cachedWeekly);
     setMonthlyAiSummary(cachedMonthly);
-  }, [selectedDate, weekDates, weekEndDate, monthEndDate, dataRevision]);
+  }, [selectedDate, weekDates, monthDates, dataRevision]);
 
   useEffect(() => {
     setLoading(true);
@@ -211,7 +236,7 @@ export function InsightsScreen() {
       }));
       const config = await getAiConfig();
       const { content } = await generateWeeklyAiSummary(config, weekPairs, monthPairs);
-      await saveCachedSummary(weekEndDate, 'weekly', content);
+      await saveCachedSummary(weekMonday, 'weekly', content);
       setWeeklyAiSummary(content);
     } catch (error) {
       Alert.alert('失败', String(error));
@@ -235,7 +260,7 @@ export function InsightsScreen() {
       }));
       const config = await getAiConfig();
       const { content } = await generateMonthlyAiSummary(config, monthPairs);
-      await saveCachedSummary(monthEndDate, 'monthly', content);
+      await saveCachedSummary(monthAnchor, 'monthly', content);
       setMonthlyAiSummary(content);
     } catch (error) {
       Alert.alert('失败', String(error));
@@ -307,8 +332,11 @@ export function InsightsScreen() {
           }}
         />
 
-        {data?.insights.length === 0 ? (
-          <Text style={styles.empty}>暂无数据</Text>
+        {!hasMeaningfulDayData ? (
+          <View style={styles.emptyDataSection}>
+            <Text style={styles.empty}>今天还没有行为记录</Text>
+            <Text style={styles.emptyHint}>解锁、切换应用或收听内容后，这里会出现数据详情</Text>
+          </View>
         ) : (
           <>
             <View style={styles.dataSectionHeader}>
@@ -316,16 +344,20 @@ export function InsightsScreen() {
               <Text style={styles.dataSectionTitle}>数据详情</Text>
               <View style={styles.dataSectionLine} />
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.insightScroll}
-              decelerationRate="fast"
-              snapToInterval={296}>
-              {data?.insights.map((insight) => (
-                <InsightCard key={insight.id} insight={insight} />
-              ))}
-            </ScrollView>
+            {insightCards.length > 0 ? (
+              <ScrollView
+                horizontal
+                scrollEnabled={insightCards.length > 1}
+                showsHorizontalScrollIndicator={false}
+                style={styles.insightScrollView}
+                contentContainerStyle={styles.insightScroll}
+                decelerationRate="fast"
+                snapToInterval={insightCards.length > 1 ? 296 : undefined}>
+                {insightCards.map((insight) => (
+                  <InsightCard key={insight.id} insight={insight} />
+                ))}
+              </ScrollView>
+            ) : null}
 
             {(data?.triggers.length ?? 0) > 0 ? (
               <InsightSection title="跳转">

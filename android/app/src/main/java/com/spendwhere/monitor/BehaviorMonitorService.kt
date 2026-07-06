@@ -38,6 +38,15 @@ class BehaviorMonitorService : Service() {
 
   override fun onCreate() {
     super.onCreate()
+    EventStore.init(applicationContext)
+    EventStore.addEvent(
+      MonitorEvent(
+        type = "service_start",
+        timestamp = System.currentTimeMillis(),
+        source = "service",
+        metadata = mapOf("phase" to "create"),
+      ),
+    )
     createNotificationChannel()
     registerScreenReceiver()
     postureSampler = PostureSampler(applicationContext)
@@ -45,6 +54,7 @@ class BehaviorMonitorService : Service() {
     MediaSessionWatcher.start(applicationContext)
     AudioPlaybackWatcher.start(applicationContext)
     ActivityRecognitionWatcher.start(applicationContext)
+    StepCounterWatcher.start(applicationContext)
     isRunning = true
   }
 
@@ -64,6 +74,14 @@ class BehaviorMonitorService : Service() {
   }
 
   override fun onDestroy() {
+    EventStore.addEvent(
+      MonitorEvent(
+        type = "service_stop",
+        timestamp = System.currentTimeMillis(),
+        source = "service",
+        metadata = mapOf("phase" to "destroy"),
+      ),
+    )
     handler.removeCallbacks(usagePollRunnable)
     unregisterScreenReceiver()
     postureSampler?.stopSampling()
@@ -71,6 +89,7 @@ class BehaviorMonitorService : Service() {
     MediaSessionWatcher.stop()
     AudioPlaybackWatcher.stop()
     ActivityRecognitionWatcher.stop(applicationContext)
+    StepCounterWatcher.stop()
     isRunning = false
     super.onDestroy()
   }
@@ -201,7 +220,7 @@ class BehaviorMonitorService : Service() {
 
     return NotificationCompat.Builder(this, CHANNEL_ID)
       .setContentTitle("轨迹运行中")
-      .setContentText("记录解锁、应用使用、运动与姿态")
+      .setContentText("记录解锁、应用使用、计步与姿态")
       .setSmallIcon(R.mipmap.ic_launcher)
       .setContentIntent(pendingIntent)
       .setOngoing(true)

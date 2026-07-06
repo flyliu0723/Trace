@@ -1,5 +1,5 @@
 import type { BehaviorEvent } from '../types/event';
-import { extractAppSequence } from './pathAnalyzer';
+import { extractDisplayAppSequence } from './pathAnalyzer';
 import { formatTime } from './sessionAnalyzer';
 
 export interface SwitchChain {
@@ -15,7 +15,7 @@ const MAX_CHAINS = 5;
 
 /** 从事件流中提取连续快速切换的 App 链 */
 export function analyzeSwitchChains(events: BehaviorEvent[]): SwitchChain[] {
-  const sequence = extractAppSequence(events);
+  const sequence = extractDisplayAppSequence(events);
   if (sequence.length < MIN_CHAIN_APPS) {
     return [];
   }

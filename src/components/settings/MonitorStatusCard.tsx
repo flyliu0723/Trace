@@ -6,7 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import {
   buildPermissionItems,
-  countMissingPermissions,
+  getHealthSummary,
   getMonitorHealth,
 } from '../../utils/monitorStatusUtils';
 import { radius, spacing, typography } from '../../theme';
@@ -29,7 +29,6 @@ export function MonitorStatusCard({
   const { colors } = useTheme();
   const health = getMonitorHealth(status);
   const permissions = buildPermissionItems(status);
-  const missingCount = countMissingPermissions(status);
   const [expanded, setExpanded] = useState(health !== 'ok');
 
   useEffect(() => {
@@ -140,20 +139,22 @@ export function MonitorStatusCard({
     },
   }));
 
-  const statusText =
-    health === 'ok'
-      ? '正在守护你的注意力轨迹'
-      : health === 'paused'
-        ? '采集已暂停'
-        : `还有 ${missingCount} 项权限待开启`;
+  const statusText = getHealthSummary(status);
 
-  const dotVariant = health === 'ok' ? 'ok' : health === 'paused' ? 'paused' : 'incomplete';
+  const dotVariant =
+    health === 'ok'
+      ? 'ok'
+      : health === 'paused'
+        ? 'paused'
+        : health === 'partial'
+          ? 'partial'
+          : 'incomplete';
 
   return (
     <View style={[styles.card, health === 'ok' && styles.cardOk]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <StatusDot variant={dotVariant} pulse={health === 'ok' && status.isRunning} />
+          <StatusDot variant={dotVariant} pulse={health !== 'paused' && status.isRunning} />
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>监控中心</Text>
             <Text style={styles.headerSubtitle}>{statusText}</Text>

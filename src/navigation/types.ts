@@ -1,8 +1,11 @@
+import type { LifeSpectrumDimension } from '../analysis/lifeSpectrumAnalyzer';
+
 export type TimelineSubTabParam = 'hourly' | 'diary' | 'wandering';
 
 export type RootStackParamList = {
   MainTabs: undefined;
   Settings: undefined;
+  LifeSpectrumHub: { dimension?: LifeSpectrumDimension } | undefined;
 };
 
 export type RootTabParamList = {
@@ -20,4 +23,5 @@ export type RootTabParamList = {
 export type SettingsStackParamList = {
   SettingsMain: undefined;
   AiSettings: undefined;
+  AppCategories: undefined;
 };

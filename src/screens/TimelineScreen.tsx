@@ -66,7 +66,7 @@ interface PendingDiaryJump {
   sessionId: string;
 }
 
-const HOUR_ROW_STARTS = [18, 12, 6, 0];
+const HOUR_ROW_STARTS = [0, 6, 12, 18];
 
 interface DailyHourlyGrid {
   date: string;
@@ -336,6 +336,11 @@ export function TimelineScreen() {
     weekDates[weekDates.length - 1] ?? weekAnchorDate,
   )}`;
   const canGoNextWeek = !isFutureDate(addDays(weekAnchorDate, 7));
+
+  const maxSwitchCount = useMemo(
+    () => Math.max(1, ...weekGrid.flatMap((day) => day.switchCounts)),
+    [weekGrid],
+  );
 
   const loadData = useCallback(async (options?: { forceSync?: boolean }) => {
     const weekIncludesToday = weekDates.some((date) => isToday(date));
@@ -827,11 +832,12 @@ export function TimelineScreen() {
                 <View key={startHour} style={styles.hourRow}>
                   <Text style={styles.hourMarker}>{String(startHour).padStart(2, '0')}</Text>
                   <View style={styles.hourCells}>
-                    {[...day.slots.slice(startHour, startHour + 6)].reverse().map((slot) => (
+                    {day.slots.slice(startHour, startHour + 6).map((slot) => (
                       <HourGridCell
                         key={`${day.date}-${slot.hour}`}
                         slot={slot}
                         switchCount={day.switchCounts[slot.hour] ?? 0}
+                        maxSwitchCount={maxSwitchCount}
                         onPress={() => jumpToDiaryHour(day.date, slot.hour)}
                         onLongPress={() => {
                           setSelectedDate(day.date);

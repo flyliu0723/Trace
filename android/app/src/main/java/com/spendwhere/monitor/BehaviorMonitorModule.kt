@@ -14,6 +14,8 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 
 class BehaviorMonitorModule(
   private val reactContext: ReactApplicationContext,
@@ -69,6 +71,9 @@ class BehaviorMonitorModule(
         "hasActivityRecognitionPermission",
         ActivityRecognitionWatcher.hasPermission(reactContext),
       )
+      map.putBoolean("hasStepCounterSensor", StepCounterWatcher.hasSensor(reactContext))
+      map.putBoolean("isStepCounterActive", StepCounterWatcher.isActive())
+      map.putBoolean("hasGooglePlayServices", hasGooglePlayServices())
       map.putString("manufacturer", manufacturer)
       map.putString("romKeepAliveHint", BatteryOptimizationHelper.getRomKeepAliveHint(manufacturer))
       promise.resolve(map)
@@ -134,6 +139,7 @@ class BehaviorMonitorModule(
     try {
       if (BehaviorMonitorService.isRunning) {
         ActivityRecognitionWatcher.start(reactContext)
+        StepCounterWatcher.start(reactContext)
       }
       promise.resolve(true)
     } catch (e: Exception) {
@@ -142,8 +148,43 @@ class BehaviorMonitorModule(
   }
 
   @ReactMethod
+  fun getPendingEventCount(promise: Promise) {
+    try {
+      EventStore.init(reactContext)
+      promise.resolve(EventStore.peekCount())
+    } catch (e: Exception) {
+      promise.reject("PENDING_COUNT_FAILED", e.message, e)
+    }
+  }
+
+  @ReactMethod
+  fun getPersistedEventCount(promise: Promise) {
+    try {
+      EventStore.init(reactContext)
+      promise.resolve(EventStore.persistedCount())
+    } catch (e: Exception) {
+      promise.reject("PERSISTED_COUNT_FAILED", e.message, e)
+    }
+  }
+
+  @ReactMethod
+  fun getDaySystemForegroundMs(dateString: String, promise: Promise) {
+    try {
+      if (!hasUsageAccess()) {
+        promise.resolve(0.0)
+        return
+      }
+      val total = DayUsageValidator.getSystemForegroundMs(reactContext, dateString)
+      promise.resolve(total.toDouble())
+    } catch (e: Exception) {
+      promise.reject("DAY_USAGE_FAILED", e.message, e)
+    }
+  }
+
+  @ReactMethod
   fun syncEvents(promise: Promise) {
     try {
+      EventStore.init(reactContext)
       val events = EventStore.drainEvents()
       val array: WritableArray = Arguments.createArray()
       for (event in events) {
@@ -252,5 +293,14 @@ class BehaviorMonitorModule(
     }
     return reactContext.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
       android.content.pm.PackageManager.PERMISSION_GRANTED
+  }
+
+  private fun hasGooglePlayServices(): Boolean {
+    return try {
+      GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(reactContext) ==
+        ConnectionResult.SUCCESS
+    } catch (_: Exception) {
+      false
+    }
   }
 }

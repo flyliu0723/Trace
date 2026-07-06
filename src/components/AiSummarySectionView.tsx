@@ -65,10 +65,10 @@ export function AiSummarySectionView({ sections }: AiSummarySectionViewProps) {
 
   return (
     <View style={styles.container}>
-      {sections.map((section) => {
+      {sections.map((section, index) => {
         const accent = getSectionAccent(section.title, colors);
         return (
-          <View key={section.title} style={styles.section}>
+          <View key={`${section.title}-${index}`} style={styles.section}>
             <View style={[styles.rail, { backgroundColor: accent }]} />
             <View style={styles.bodyWrap}>
               <Text style={styles.title}>{section.title}</Text>

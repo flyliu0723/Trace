@@ -9,6 +9,7 @@ import { getSessionMoodLabel } from '../analysis/sessionMoodAnalyzer';
 import { formatDuration, formatTime } from '../analysis/sessionAnalyzer';
 import type { DiarySessionEntry } from '../analysis/diarySessionBuilder';
 import { EventTimelineItem } from './EventTimelineItem';
+import { AppDwellBlockList } from './AppDwellBlockList';
 import { AppIconBadge } from './HourlyAppRow';
 import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -32,7 +33,7 @@ export function SessionDiaryCard({
   isLast = false,
 }: SessionDiaryCardProps) {
   const { colors } = useTheme();
-  const { session, goal, mood, appPath } = entry;
+  const { session, goal, mood, appPath, appBlocks } = entry;
   const isMuted = MUTED_GOAL_TYPES.has(goal.goalType) && mood.mood !== 'wandering';
   const isWandering = mood.mood === 'wandering';
   const isFlow = mood.mood === 'flow';
@@ -183,6 +184,16 @@ export function SessionDiaryCard({
       color: c.textSecondary,
       lineHeight: 20,
     },
+    rawPathSection: {
+      gap: spacing.xs,
+      marginBottom: spacing.sm,
+    },
+    rawPathLabel: {
+      ...typography.label,
+      color: c.textMuted,
+      fontSize: 10,
+      letterSpacing: 0.5,
+    },
     appPath: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -193,6 +204,7 @@ export function SessionDiaryCard({
       ...typography.label,
       color: c.textMuted,
       marginHorizontal: 2,
+      fontSize: 10,
     },
     expandedSection: {
       marginTop: spacing.sm,
@@ -271,28 +283,36 @@ export function SessionDiaryCard({
             />
           </View>
 
-          {appPath.length > 0 ? (
-            <>
-              <View style={styles.appPath}>
-                {appPath.map((app, index) => (
-                  <React.Fragment key={`${app.packageName}-${index}`}>
-                    {index > 0 ? <Text style={styles.arrow}>→</Text> : null}
-                    <AppIconBadge
-                      packageName={app.packageName}
-                      appLabel={app.appLabel}
-                      size={isFlow ? 26 : 22}
-                    />
-                  </React.Fragment>
-                ))}
-              </View>
-              <Text style={styles.summary}>{goal.summary}</Text>
-            </>
-          ) : (
-            <Text style={styles.summary}>{goal.summary}</Text>
-          )}
+          <Text style={styles.summary}>{goal.summary}</Text>
+
+          {appBlocks.length > 0 ? (
+            <AppDwellBlockList
+              blocks={appBlocks}
+              iconSize={isFlow ? 26 : 24}
+              compact={isWandering && appBlocks.length > 4}
+              maxVisible={isWandering && appBlocks.length > 6 ? 5 : undefined}
+            />
+          ) : null}
 
           {expanded ? (
             <View style={styles.expandedSection}>
+              {appPath.length > 1 ? (
+                <View style={styles.rawPathSection}>
+                  <Text style={styles.rawPathLabel}>切换路径</Text>
+                  <View style={styles.appPath}>
+                    {appPath.map((app, index) => (
+                      <React.Fragment key={`${app.packageName}-${index}`}>
+                        {index > 0 ? <Text style={styles.arrow}>→</Text> : null}
+                        <AppIconBadge
+                          packageName={app.packageName}
+                          appLabel={app.appLabel}
+                          size={20}
+                        />
+                      </React.Fragment>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
               {session.events.map((event, index) => (
                 <EventTimelineItem
                   key={String(event.id ?? `${event.timestamp}-${event.type}-${index}`)}

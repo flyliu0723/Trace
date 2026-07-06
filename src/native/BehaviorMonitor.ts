@@ -8,6 +8,9 @@ export interface MonitorStatus {
   hasNotificationListenerAccess: boolean;
   isIgnoringBatteryOptimizations: boolean;
   hasActivityRecognitionPermission: boolean;
+  hasStepCounterSensor: boolean;
+  isStepCounterActive: boolean;
+  hasGooglePlayServices: boolean;
   manufacturer: string;
   romKeepAliveHint: string;
 }
@@ -25,6 +28,9 @@ export interface BehaviorMonitorNative {
   reconcileEvents(sinceTimestamp: number): Promise<BehaviorEvent[]>;
   reconcileMediaState(): Promise<BehaviorEvent[]>;
   getActiveMediaPackages(): Promise<string[]>;
+  getPendingEventCount(): Promise<number>;
+  getPersistedEventCount(): Promise<number>;
+  getDaySystemForegroundMs(dateString: string): Promise<number>;
   resolveAppLabels(packageNames: string[]): Promise<Record<string, string>>;
   getAppIcons(packageNames: string[]): Promise<Record<string, string>>;
 }

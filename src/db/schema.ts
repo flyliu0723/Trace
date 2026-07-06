@@ -54,6 +54,26 @@ export const CREATE_AI_SUMMARIES_INDEX = `
   ON ${AI_SUMMARIES_TABLE}(date, type);
 `;
 
+export const SYNC_LOG_TABLE = 'sync_log';
+
+export const CREATE_SYNC_LOG_TABLE = `
+  CREATE TABLE IF NOT EXISTS ${SYNC_LOG_TABLE} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    synced INTEGER NOT NULL DEFAULT 0,
+    reconciled INTEGER NOT NULL DEFAULT 0,
+    media_reconciled INTEGER NOT NULL DEFAULT 0,
+    repaired INTEGER NOT NULL DEFAULT 0,
+    ran INTEGER NOT NULL DEFAULT 1,
+    kind TEXT NOT NULL DEFAULT 'auto',
+    skipped_reason TEXT
+  );
+`;
+
+export const CREATE_SYNC_LOG_INDEX = `
+  CREATE INDEX IF NOT EXISTS idx_sync_log_at ON ${SYNC_LOG_TABLE}(at DESC);
+`;
+
 /** 为旧版本数据库补充 dedupe_key 列 */
 export const ADD_DEDUPE_KEY_COLUMN = `
   ALTER TABLE ${EVENTS_TABLE} ADD COLUMN dedupe_key TEXT;

@@ -17,6 +17,7 @@ export interface ContextMediaSegment {
   endTime: number;
   durationMs: number;
   trackCount: number;
+  pauseCount?: number;
 }
 
 export interface ContextMediaBucket {
@@ -24,6 +25,7 @@ export interface ContextMediaBucket {
   label: string;
   totalDurationMs: number;
   segmentCount: number;
+  totalPauseCount: number;
   trackCount: number;
   apps: string[];
   topSegments: ContextMediaSegment[];
@@ -169,6 +171,7 @@ function toContextSegment(
     endTime: segment.endTime,
     durationMs: segment.durationMs,
     trackCount: countTracksInSegment(events, segment.startTime, segment.endTime),
+    pauseCount: segment.pauseCount,
   };
 }
 
@@ -195,12 +198,14 @@ function buildBucket(
   const apps = [...new Set(segments.map((segment) => segment.appLabel))];
   const trackCount = segments.reduce((sum, segment) => sum + segment.trackCount, 0);
   const totalDurationMs = segments.reduce((sum, segment) => sum + segment.durationMs, 0);
+  const totalPauseCount = segments.reduce((sum, segment) => sum + (segment.pauseCount ?? 0), 0);
 
   return {
     context,
     label: CONTEXT_LABELS[context],
     totalDurationMs,
     segmentCount: segments.length,
+    totalPauseCount,
     trackCount,
     apps,
     topSegments: [...segments].sort((a, b) => b.durationMs - a.durationMs).slice(0, 3),
@@ -273,7 +278,9 @@ export function formatContextMediaBucketSummary(bucket: ContextMediaBucket): str
 export function formatContextMediaSegmentLine(segment: ContextMediaSegment): string {
   const title = segment.title ? `「${segment.title}」` : '';
   const trackText = segment.trackCount > 1 ? `${segment.trackCount} 集` : '1 集';
-  return `${formatTime(segment.startTime)} ${segment.appLabel}${title}：${formatDuration(segment.durationMs)}（${trackText}）`;
+  const pauseText =
+    segment.pauseCount && segment.pauseCount > 0 ? `，中途暂停 ${segment.pauseCount} 次` : '';
+  return `${formatTime(segment.startTime)} ${segment.appLabel}${title}：${formatDuration(segment.durationMs)}（${trackText}${pauseText}）`;
 }
 
 export function buildContextMediaInsight(report: DailyContextMediaReport): {

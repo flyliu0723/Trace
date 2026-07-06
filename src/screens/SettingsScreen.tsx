@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DataHealthCard } from '../components/settings/DataHealthCard';
 import { DemoDataSection } from '../components/DemoDataSection';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { MonitorStatusCard } from '../components/settings/MonitorStatusCard';
@@ -179,6 +180,8 @@ export function SettingsScreen() {
           onPermissionAction={handlePermissionAction}
         />
 
+        <DataHealthCard status={status} />
+
         <SettingsGroup
           title="个性化"
           footer="数据默认仅存储于本机，绝不上传云端。">
@@ -197,9 +200,15 @@ export function SettingsScreen() {
             label="AI 总结助手"
             hint="配置 API Key 以生成每日行为洞察"
             showChevron
-            isLast
             value={aiConfigured ? '已配置' : '未配置'}
             onPress={() => navigation.navigate('AiSettings')}
+          />
+          <SettingsRow
+            label="App 分类"
+            hint="自定义应用在生活光谱中的归类"
+            showChevron
+            isLast
+            onPress={() => navigation.navigate('AppCategories')}
           />
         </SettingsGroup>
 

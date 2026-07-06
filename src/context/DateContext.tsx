@@ -21,6 +21,8 @@ interface DateContextValue {
   isSelectedToday: boolean;
   /** 前台同步完成后递增，供各页面刷新数据 */
   dataRevision: number;
+  /** 手动触发各页重新拉取数据（如修改 App 分类后） */
+  refreshData: () => void;
 }
 
 const DateContext = createContext<DateContextValue | null>(null);
@@ -50,6 +52,10 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
 
   const goToday = useCallback(() => {
     setSelectedDateState(getTodayDateString());
+  }, []);
+
+  const refreshData = useCallback(() => {
+    setDataRevision((revision) => revision + 1);
   }, []);
 
   useEffect(() => {
@@ -89,8 +95,9 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
       canGoNext: !isFutureDate(addDays(selectedDate, 1)),
       isSelectedToday: selectedDate === getTodayDateString(),
       dataRevision,
+      refreshData,
     }),
-    [selectedDate, setSelectedDate, goPrevDay, goNextDay, goToday, dataRevision],
+    [selectedDate, setSelectedDate, goPrevDay, goNextDay, goToday, dataRevision, refreshData],
   );
 
   return <DateContext.Provider value={value}>{children}</DateContext.Provider>;

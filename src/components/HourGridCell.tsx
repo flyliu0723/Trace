@@ -1,8 +1,8 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { HourlyAppSlot } from '../analysis/hourlyAnalyzer';
-import { classifyApp, getCategoryColor } from '../analysis/appClassifier';
-import { HIGH_HOURLY_SWITCH_THRESHOLD, HOUR_MS } from '../constants';
+import { getHeatmapColor } from '../analysis/heatmapAnalyzer';
+import { HOUR_MS } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { formatDuration } from '../analysis/sessionAnalyzer';
@@ -12,21 +12,25 @@ import { AppIconBadge } from './HourlyAppRow';
 interface HourGridCellProps {
   slot: HourlyAppSlot;
   switchCount: number;
+  maxSwitchCount?: number;
   onPress: () => void;
   onLongPress: () => void;
 }
 
-export function HourGridCell({ slot, switchCount, onPress, onLongPress }: HourGridCellProps) {
+export function HourGridCell({
+  slot,
+  switchCount,
+  maxSwitchCount = 1,
+  onPress,
+  onLongPress,
+}: HourGridCellProps) {
   const { colors } = useTheme();
   const displayLabel = slot.appLabel ?? slot.longDwells[0]?.appLabel;
   const displayPackage = slot.packageName ?? slot.longDwells[0]?.packageName;
   const hasLongDwell = slot.longDwells.length > 0;
-  const isHighSwitch = switchCount >= HIGH_HOURLY_SWITCH_THRESHOLD;
   const fillRatio = Math.min(1, slot.durationMs / HOUR_MS);
-  const hasUsage = fillRatio > 0 || slot.openCount > 0;
-  const categoryColor = displayLabel
-    ? getCategoryColor(classifyApp(displayPackage, displayLabel))
-    : colors.accent;
+  const hasUsage = fillRatio > 0 || switchCount > 0 || slot.openCount > 0;
+  const heatColor = getHeatmapColor(switchCount, maxSwitchCount, colors);
 
   const styles = useThemedStyles(({ colors: c }) => ({
     cell: {
@@ -47,11 +51,6 @@ export function HourGridCell({ slot, switchCount, onPress, onLongPress }: HourGr
       shadowRadius: 6,
       elevation: 1,
     },
-    cellHighSwitch: {
-      borderWidth: 1,
-      borderColor: c.quickSession + '66',
-      borderStyle: 'dashed' as const,
-    },
     fill: {
       position: 'absolute',
       left: 0,
@@ -69,37 +68,17 @@ export function HourGridCell({ slot, switchCount, onPress, onLongPress }: HourGr
       fontWeight: '600',
       color: c.textSecondary,
     },
-    switchBadge: {
-      position: 'absolute',
-      top: 2,
-      right: 2,
-      minWidth: 13,
-      height: 13,
-      borderRadius: 7,
-      paddingHorizontal: 2,
-      backgroundColor: c.quickSession,
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2,
-    },
-    switchBadgeText: {
-      fontSize: 8,
-      fontWeight: '700',
-      color: c.onAccent,
-      lineHeight: 11,
-    },
     pressed: {
       opacity: 0.75,
     },
   }));
 
   const fillPercent = Math.max(fillRatio * 100, hasUsage && fillRatio === 0 ? 8 : 0);
-  const fillColor = categoryColor + (fillRatio > 0.5 ? 'BB' : '77');
   const durationMinutes = Math.round(slot.durationMs / 60_000);
   const showDurationLabel = durationMinutes > 0 && !displayLabel;
 
   const accessibilityLabel = hasUsage
-    ? `${slot.hour}时，使用 ${formatDuration(slot.durationMs)}${isHighSwitch ? `，切换 ${switchCount} 次` : ''}${hasLongDwell ? '，有长时间停留' : ''}`
+    ? `${slot.hour}时，使用 ${formatDuration(slot.durationMs)}${switchCount > 0 ? `，切换 ${switchCount} 次` : ''}${hasLongDwell ? '，有长时间停留' : ''}`
     : `${slot.hour}时，无使用记录`;
 
   return (
@@ -107,19 +86,18 @@ export function HourGridCell({ slot, switchCount, onPress, onLongPress }: HourGr
       style={({ pressed }) => [
         styles.cell,
         hasLongDwell && styles.cellLongDwell,
-        isHighSwitch && !hasLongDwell && styles.cellHighSwitch,
         pressed && styles.pressed,
       ]}
       onPress={onPress}
       onLongPress={onLongPress}
       accessibilityLabel={accessibilityLabel}>
-      {fillRatio > 0 ? (
+      {fillPercent > 0 ? (
         <View
           style={[
             styles.fill,
             {
               height: `${fillPercent}%` as `${number}%`,
-              backgroundColor: fillColor,
+              backgroundColor: heatColor,
             },
           ]}
         />
@@ -131,11 +109,6 @@ export function HourGridCell({ slot, switchCount, onPress, onLongPress }: HourGr
           <Text style={styles.durationLabel}>{durationMinutes}分</Text>
         ) : null}
       </View>
-      {isHighSwitch ? (
-        <View style={styles.switchBadge}>
-          <Text style={styles.switchBadgeText}>{switchCount}</Text>
-        </View>
-      ) : null}
     </Pressable>
   );
 }
@@ -152,7 +125,10 @@ interface HourGridLegendProps {
   compact?: boolean;
 }
 
+const HEAT_LEGEND_STOPS = [0, 0.25, 0.5, 0.75, 1] as const;
+
 export function HourGridLegend({ compact = false }: HourGridLegendProps) {
+  const { colors } = useTheme();
   const styles = useThemedStyles(({ colors: c }) => ({
     legend: {
       flexDirection: 'row',
@@ -183,7 +159,7 @@ export function HourGridLegend({ compact = false }: HourGridLegendProps) {
       right: 0,
       bottom: 0,
       height: '60%',
-      backgroundColor: c.accent + '88',
+      backgroundColor: c.heatMid,
     },
     sampleGlow: {
       width: 14,
@@ -192,18 +168,14 @@ export function HourGridLegend({ compact = false }: HourGridLegendProps) {
       borderWidth: 1,
       borderColor: c.warning + '55',
     },
-    sampleBadge: {
-      minWidth: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: c.quickSession,
-      alignItems: 'center',
-      justifyContent: 'center',
+    heatScale: {
+      flexDirection: 'row',
+      gap: 2,
     },
-    sampleBadgeText: {
-      fontSize: 7,
-      fontWeight: '700',
-      color: c.onAccent,
+    heatSwatch: {
+      width: 10,
+      height: 10,
+      borderRadius: 2,
     },
     text: {
       ...typography.label,
@@ -218,13 +190,27 @@ export function HourGridLegend({ compact = false }: HourGridLegendProps) {
         <View style={styles.sampleCell}>
           <View style={styles.sampleFill} />
         </View>
-        <Text style={styles.text}>底部填充 = 使用时长</Text>
+        <Text style={styles.text}>高度 = 使用时长</Text>
       </View>
       <View style={styles.item}>
-        <View style={styles.sampleBadge}>
-          <Text style={styles.sampleBadgeText}>3</Text>
+        <View style={styles.heatScale}>
+          {HEAT_LEGEND_STOPS.map((ratio) => (
+            <View
+              key={ratio}
+              style={[
+                styles.heatSwatch,
+                {
+                  backgroundColor: getHeatmapColor(
+                    ratio === 0 ? 0 : Math.max(1, Math.round(ratio * 10)),
+                    10,
+                    colors,
+                  ),
+                },
+              ]}
+            />
+          ))}
         </View>
-        <Text style={styles.text}>角标 = 切换次数</Text>
+        <Text style={styles.text}>颜色 = 切换次数</Text>
       </View>
       <View style={styles.item}>
         <View style={styles.sampleGlow} />

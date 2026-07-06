@@ -4,6 +4,7 @@ import {
   ENTERTAINMENT_CATEGORIES,
   PRODUCTIVE_CATEGORIES,
 } from './appClassifier';
+import { isLauncherApp } from './launcherFilter';
 import { formatDuration, formatTime } from './sessionAnalyzer';
 
 export type SessionGoalType =
@@ -51,6 +52,9 @@ function getSessionApps(session: PhoneSession): Array<{
       continue;
     }
     if (seen.has(event.packageName)) {
+      continue;
+    }
+    if (isLauncherApp(event.packageName, event.appLabel)) {
       continue;
     }
     seen.add(event.packageName);

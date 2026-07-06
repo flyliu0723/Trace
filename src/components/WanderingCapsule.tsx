@@ -3,6 +3,7 @@ import { Animated, Pressable, Text, View } from 'react-native';
 import type { WanderingEpisode } from '../analysis/wanderingViewBuilder';
 import { formatDuration, formatTime } from '../analysis/sessionAnalyzer';
 import { WANDERING_SHAKE_SWITCH_THRESHOLD } from '../constants';
+import { AppDwellBlockList } from './AppDwellBlockList';
 import { AppIconBadge } from './HourlyAppRow';
 import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -98,34 +99,6 @@ export function WanderingCapsule({ episode, onViewDiary }: WanderingCapsuleProps
       marginLeft: 'auto',
       ...typography.mono,
     },
-    chainTrack: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-      paddingVertical: 2,
-    },
-    chainSegment: {
-      flex: 1,
-      height: 1,
-      backgroundColor: c.warning + '55',
-    },
-    chainDot: {
-      width: 4,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: c.warning,
-    },
-    appRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: episode.switchCount >= 5 ? 2 : spacing.xs,
-    },
-    arrow: {
-      ...typography.label,
-      color: c.textMuted,
-      fontSize: 10,
-    },
     meta: {
       ...typography.label,
       color: c.textMuted,
@@ -162,31 +135,24 @@ export function WanderingCapsule({ episode, onViewDiary }: WanderingCapsuleProps
         <Text style={styles.duration}>{formatDuration(episode.durationMs)}</Text>
       </View>
 
-      {episode.apps.length > 0 ? (
-        <>
-          <View style={styles.appRow}>
-            {episode.apps.map((app, index) => (
-              <React.Fragment key={`${app.packageName}-${index}`}>
-                {index > 0 ? <Text style={styles.arrow}>→</Text> : null}
-                <AppIconBadge
-                  packageName={app.packageName}
-                  appLabel={app.appLabel}
-                  size={iconSize}
-                />
-              </React.Fragment>
-            ))}
-          </View>
-          {episode.switchCount >= 3 ? (
-            <View style={styles.chainTrack}>
-              {episode.apps.map((app, index) => (
-                <React.Fragment key={`chain-${app.packageName}-${index}`}>
-                  {index > 0 ? <View style={styles.chainSegment} /> : null}
-                  <View style={styles.chainDot} />
-                </React.Fragment>
-              ))}
-            </View>
-          ) : null}
-        </>
+      {episode.appBlocks.length > 0 ? (
+        <AppDwellBlockList
+          blocks={episode.appBlocks}
+          iconSize={iconSize}
+          compact
+          maxVisible={episode.switchCount >= 5 ? 4 : undefined}
+        />
+      ) : episode.apps.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+          {episode.apps.map((app) => (
+            <AppIconBadge
+              key={app.packageName}
+              packageName={app.packageName}
+              appLabel={app.appLabel}
+              size={iconSize}
+            />
+          ))}
+        </View>
       ) : null}
 
       <Text style={styles.meta}>切换 {episode.switchCount} 次</Text>

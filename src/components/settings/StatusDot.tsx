@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, View, type ViewStyle } from 'react-native';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 
-type StatusDotVariant = 'ok' | 'paused' | 'incomplete';
+type StatusDotVariant = 'ok' | 'partial' | 'paused' | 'incomplete';
 
 interface StatusDotProps {
   variant: StatusDotVariant;
@@ -23,6 +23,9 @@ export function StatusDot({ variant, pulse = false, size = 8 }: StatusDotProps) 
       backgroundColor: colors.success,
     },
     paused: {
+      backgroundColor: colors.warning,
+    },
+    partial: {
       backgroundColor: colors.warning,
     },
     incomplete: {

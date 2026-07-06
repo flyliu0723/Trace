@@ -55,6 +55,9 @@ const POSTURE_LABELS: Record<string, string> = {
 function formatContextSubtitle(event: BehaviorEvent): string | null {
   if (event.type === 'activity_change' && event.metadata?.activity) {
     const label = ACTIVITY_LABELS[event.metadata.activity] ?? event.metadata.activity;
+    if (event.metadata.detector === 'step_counter') {
+      return `计步检测到${label}`;
+    }
     return `检测到${label}`;
   }
   if (event.type === 'posture_change' && event.metadata?.posture) {

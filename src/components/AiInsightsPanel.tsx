@@ -75,11 +75,17 @@ export function AiInsightsPanel({
 
   const activeConfig = PERIODS.find((period) => period.key === activePeriod) ?? PERIODS[0];
   const activeState = periodMap[activePeriod];
-  const sections = useMemo(
-    () => (activeState.content ? parseAiSummarySections(activeState.content) : []),
-    [activeState.content],
-  );
-  const showActions = aiConfigured && activeState.content && !activeState.loading;
+  const sections = useMemo(() => {
+    if (!activeState.content?.trim()) {
+      return [];
+    }
+    const parsed = parseAiSummarySections(activeState.content);
+    if (parsed.length > 0) {
+      return parsed;
+    }
+    return [{ title: '总结', body: activeState.content.trim() }];
+  }, [activeState.content]);
+  const showActions = aiConfigured && Boolean(activeState.content?.trim()) && !activeState.loading;
 
   const styles = useThemedStyles(({ colors: c, isDark }) => ({
     panel: {
@@ -330,7 +336,7 @@ export function AiInsightsPanel({
       return <AiUnconfiguredEmpty styles={styles} colors={colors} />;
     }
 
-    if (!activeState.content) {
+    if (!activeState.content?.trim()) {
       return (
         <View style={styles.emptyWrap}>
           <View style={styles.emptyIcon}>

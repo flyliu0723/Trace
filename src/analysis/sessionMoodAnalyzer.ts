@@ -6,7 +6,8 @@ import {
 } from '../constants';
 import type { PhoneSession } from '../types/event';
 import { classifyApp, ENTERTAINMENT_CATEGORIES } from './appClassifier';
-import { extractAppSequence } from './pathAnalyzer';
+import { isLauncherApp } from './launcherFilter';
+import { extractDisplayAppSequence } from './pathAnalyzer';
 import type { SessionGoal } from './sessionGoalAnalyzer';
 
 export type SessionMood = 'flow' | 'normal' | 'wandering';
@@ -25,7 +26,7 @@ export interface SessionMoodResult {
 }
 
 function countSwitchesInWindow(
-  sequence: ReturnType<typeof extractAppSequence>,
+  sequence: ReturnType<typeof extractDisplayAppSequence>,
   windowMs: number,
 ): number {
   let maxSwitches = 0;
@@ -47,7 +48,7 @@ function countSwitchesInWindow(
   return maxSwitches;
 }
 
-function hasRapidSwitching(sequence: ReturnType<typeof extractAppSequence>): boolean {
+function hasRapidSwitching(sequence: ReturnType<typeof extractDisplayAppSequence>): boolean {
   return countSwitchesInWindow(sequence, WANDERING_WINDOW_MS) > WANDERING_MIN_SWITCHES;
 }
 
@@ -60,6 +61,9 @@ function countEntertainmentApps(session: PhoneSession): number {
       continue;
     }
     if (seen.has(event.packageName)) {
+      continue;
+    }
+    if (isLauncherApp(event.packageName, event.appLabel)) {
       continue;
     }
     seen.add(event.packageName);
@@ -77,7 +81,7 @@ export function analyzeSessionMood(
   session: PhoneSession,
   goal?: SessionGoal,
 ): SessionMoodResult {
-  const sequence = extractAppSequence(session.events);
+  const sequence = extractDisplayAppSequence(session.events);
   const switchCount = Math.max(0, sequence.length - 1);
   const durationMinutes = Math.max(session.durationMs / 60_000, 0.5);
   const switchRate = switchCount / durationMinutes;

@@ -1,4 +1,14 @@
 import type { DayInsights } from './insightEngine';
+import type { EntertainmentReport } from './entertainmentReportAnalyzer';
+import {
+  formatEntertainmentMonthlyPayload,
+  formatEntertainmentWeeklyPayload,
+} from './entertainmentReportAnalyzer';
+import type { PodcastReport } from './podcastReportAnalyzer';
+import {
+  formatPodcastMonthlyPayload,
+  formatPodcastWeeklyPayload,
+} from './podcastReportAnalyzer';
 import type { BehaviorEvent } from '../types/event';
 import { addDays, formatDisplayDate } from '../utils/dateUtils';
 import { analyzeBehaviorAnomalies, formatBehaviorAnomalies } from './anomalyAnalyzer';
@@ -182,3 +192,71 @@ export const MONTHLY_SYSTEM_PROMPT = `你是 SpendWhere 的数字行为分析师
 - 不要重复统计数字，不要逐条复述输入数据
 - 每一段都必须包含新的观察，优先解释「为什么」而非罗列「发生了什么」
 - 若没有明显规律，明确说明，不要编造`;
+
+export const PODCAST_WEEKLY_SYSTEM_PROMPT = `你是 SpendWhere 的播客/音乐收听分析师。用户数据来自手机行为时间线，统计区间为自然周（周一至周日）。
+
+输出必须严格按以下四个部分，用【】标记标题，每部分 1-3 句：
+【收听画像】本周最值得注意的收听模式（时段、场景、App、节目类型）
+【为什么会这样】结合行进/步行/陪伴场景、逐日分布、较上周变化解释；区分「主动打开」与「锁屏后台陪伴」
+【听得好的地方】值得保留的收听习惯；若无则诚实说明
+【下周小实验】一个成本极低、可观察的收听相关小调整
+
+写作规则：全文 350 字以内，简体中文，温暖不评判，不逐条复述数字`;
+
+export const PODCAST_MONTHLY_SYSTEM_PROMPT = `你是 SpendWhere 的播客/音乐收听分析师。用户数据来自手机行为时间线，统计区间为自然月（1 日至月底）。
+
+输出必须严格按以下四个部分，用【】标记标题，每部分 2-4 句：
+【收听画像】本月最值得注意的收听模式与变化
+【为什么会这样】结合场景习惯、逐日分布、较上月变化解释收听节奏
+【听得好的地方】值得保留的收听习惯；若无则诚实说明
+【下月小实验】一个成本极低、可观察的收听相关小调整
+
+写作规则：全文 450 字以内，简体中文，温暖不评判，不逐条复述数字`;
+
+export function buildPodcastWeeklyPromptPayload(
+  weekMonday: string,
+  report: PodcastReport,
+): string {
+  return formatPodcastWeeklyPayload(weekMonday, report);
+}
+
+export function buildPodcastMonthlyPromptPayload(
+  monthAnchor: string,
+  report: PodcastReport,
+): string {
+  return formatPodcastMonthlyPayload(monthAnchor, report);
+}
+
+export const ENTERTAINMENT_WEEKLY_SYSTEM_PROMPT = `你是 SpendWhere 的娱乐浏览分析师。统计区间为自然周（周一至周日），覆盖抖音、小红书、B站等。
+
+输出必须严格按以下四个部分，用【】标记标题，每部分 1-3 句：
+【刷屏画像】本周最突出的娱乐浏览模式（App、时段、是否碎片化）
+【为什么会这样】结合跳转路径、游离会话、逐日分布、较上周变化解释
+【没那么糟的地方】可接受的娱乐方式；若无则诚实说明
+【下周小实验】一个成本极低的浏览相关小调整
+
+写作规则：全文 350 字以内，简体中文，温暖不评判，不逐条复述数字`;
+
+export const ENTERTAINMENT_MONTHLY_SYSTEM_PROMPT = `你是 SpendWhere 的娱乐浏览分析师。统计区间为自然月（1 日至月底）。
+
+输出必须严格按以下四个部分，用【】标记标题，每部分 2-4 句：
+【刷屏画像】本月最突出的娱乐浏览模式与趋势
+【为什么会这样】结合高频跳转、游离刷屏、逐日分布、较上月变化解释
+【没那么糟的地方】可接受的娱乐方式；若无则诚实说明
+【下月小实验】一个成本极低的浏览相关小调整
+
+写作规则：全文 450 字以内，简体中文，温暖不评判，不逐条复述数字`;
+
+export function buildEntertainmentWeeklyPromptPayload(
+  weekMonday: string,
+  report: EntertainmentReport,
+): string {
+  return formatEntertainmentWeeklyPayload(weekMonday, report);
+}
+
+export function buildEntertainmentMonthlyPromptPayload(
+  monthAnchor: string,
+  report: EntertainmentReport,
+): string {
+  return formatEntertainmentMonthlyPayload(monthAnchor, report);
+}

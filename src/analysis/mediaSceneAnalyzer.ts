@@ -1,4 +1,5 @@
 import type { BehaviorEvent } from '../types/event';
+import { MEDIA_PAUSE_MERGE_GAP_MS } from '../constants';
 import { classifyApp, PRODUCTIVE_CATEGORIES } from './appClassifier';
 import { formatDuration, formatTime } from './sessionAnalyzer';
 
@@ -30,6 +31,8 @@ export interface MediaPlaybackSegment {
   durationMs: number;
   primaryScene: LifeScene;
   hadWorkAppForeground: boolean;
+  /** 合并前因暂停切分的次数 */
+  pauseCount?: number;
 }
 
 export interface MediaSceneSummary {
@@ -42,6 +45,7 @@ export interface MediaSceneSummary {
 export interface DailyMediaSceneReport {
   totalDurationMs: number;
   segmentCount: number;
+  totalPauseCount: number;
   scenes: MediaSceneSummary[];
   segments: MediaPlaybackSegment[];
 }
@@ -69,7 +73,67 @@ function getSceneFromTimestamp(timestamp: number): LifeScene {
   return getSceneFromHour(new Date(timestamp).getHours());
 }
 
-export function extractMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[] {
+function segmentTitleKey(title?: string): string {
+  return title?.trim() ?? '';
+}
+
+function canMergePauseGap(
+  current: MediaPlaybackSegment,
+  next: MediaPlaybackSegment,
+): boolean {
+  const gapMs = next.startTime - current.endTime;
+  if (gapMs < 0 || gapMs > MEDIA_PAUSE_MERGE_GAP_MS) {
+    return false;
+  }
+  if (current.appLabel !== next.appLabel) {
+    return false;
+  }
+  return segmentTitleKey(current.title) === segmentTitleKey(next.title);
+}
+
+/** 合并因短暂暂停切分的相邻收听段 */
+export function mergeMediaPauseSegments(segments: MediaPlaybackSegment[]): MediaPlaybackSegment[] {
+  if (segments.length <= 1) {
+    return segments.map((segment) => ({ ...segment, pauseCount: segment.pauseCount ?? 0 }));
+  }
+
+  const sorted = [...segments].sort((a, b) => a.startTime - b.startTime);
+  const merged: MediaPlaybackSegment[] = [];
+  let current: MediaPlaybackSegment = { ...sorted[0], pauseCount: sorted[0].pauseCount ?? 0 };
+
+  for (let index = 1; index < sorted.length; index += 1) {
+    const next = sorted[index];
+    if (canMergePauseGap(current, next)) {
+      current = {
+        ...current,
+        endTime: next.endTime,
+        durationMs: current.durationMs + next.durationMs,
+        hadWorkAppForeground: current.hadWorkAppForeground || next.hadWorkAppForeground,
+        pauseCount: (current.pauseCount ?? 0) + (next.pauseCount ?? 0) + 1,
+      };
+      continue;
+    }
+
+    merged.push(current);
+    current = { ...next, pauseCount: next.pauseCount ?? 0 };
+  }
+
+  merged.push(current);
+  return merged;
+}
+
+export function sumMediaPauseCount(segments: Array<{ pauseCount?: number }>): number {
+  return segments.reduce((sum, segment) => sum + (segment.pauseCount ?? 0), 0);
+}
+
+export function formatMediaSegmentCountLabel(segmentCount: number, totalPauseCount = 0): string {
+  if (totalPauseCount > 0) {
+    return `${segmentCount} 段（中途暂停 ${totalPauseCount} 次）`;
+  }
+  return `${segmentCount} 段`;
+}
+
+function extractRawMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[] {
   const mediaEvents = [...events]
     .filter((e) => MEDIA_SEGMENT_START_TYPES.has(e.type) || MEDIA_END_TYPES.has(e.type))
     .sort((a, b) => a.timestamp - b.timestamp);
@@ -125,7 +189,12 @@ export function extractMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegm
     flushSegment(lastTimestamp);
   }
 
-  return segments.filter((segment) => segment.durationMs >= 30_000);
+  return segments;
+}
+
+export function extractMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[] {
+  const rawSegments = extractRawMediaSegments(events);
+  return mergeMediaPauseSegments(rawSegments).filter((segment) => segment.durationMs >= 30_000);
 }
 
 /** 分析单日后台媒体播放的生活场景分布 */
@@ -158,6 +227,7 @@ export function analyzeDailyMediaScenes(events: BehaviorEvent[]): DailyMediaScen
   return {
     totalDurationMs,
     segmentCount: segments.length,
+    totalPauseCount: sumMediaPauseCount(segments),
     scenes,
     segments: segments.sort((a, b) => b.durationMs - a.durationMs).slice(0, 5),
   };
@@ -172,11 +242,13 @@ export function formatDailyMediaSceneReport(report: DailyMediaSceneReport): stri
     .map((segment) => {
       const title = segment.title ? `「${segment.title}」` : '';
       const workNote = segment.hadWorkAppForeground ? '，期间有工作/工具类 App 在前台' : '';
-      return `- ${formatTime(segment.startTime)} ${segment.appLabel}${title}：${formatDuration(segment.durationMs)}，场景「${SCENE_LABELS[segment.primaryScene]}」${workNote}`;
+      const pauseNote =
+        segment.pauseCount && segment.pauseCount > 0 ? `，中途暂停 ${segment.pauseCount} 次` : '';
+      return `- ${formatTime(segment.startTime)} ${segment.appLabel}${title}：${formatDuration(segment.durationMs)}，场景「${SCENE_LABELS[segment.primaryScene]}」${pauseNote}${workNote}`;
     })
     .join('\n');
 
-  return `总后台播放：${formatDuration(report.totalDurationMs)}，共 ${report.segmentCount} 段
+  return `总后台播放：${formatDuration(report.totalDurationMs)}，共 ${formatMediaSegmentCountLabel(report.segmentCount, report.totalPauseCount)}
 
 ## 场景分布
 ${sceneLines}

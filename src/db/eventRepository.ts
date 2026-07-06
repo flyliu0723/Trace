@@ -2,6 +2,7 @@ import { open } from '@op-engineering/op-sqlite';
 import type { BehaviorEvent, EventSource, EventType } from '../types/event';
 import { timestampToDateString } from '../utils/dateUtils';
 import { EVENTS_TABLE } from '../constants';
+import { buildDedupeKey } from './dedupeKey';
 import {
   ADD_DEDUPE_KEY_COLUMN,
   CREATE_EVENTS_DEDUPE_INDEX,
@@ -12,21 +13,6 @@ import {
 } from './schema';
 
 let db: ReturnType<typeof open> | null = null;
-
-export function buildDedupeKey(
-  event: Pick<BehaviorEvent, 'type' | 'timestamp' | 'packageName' | 'metadata'>,
-): string {
-  if (event.type === 'activity_change') {
-    return `${event.type}|${event.timestamp}|${event.metadata?.activity ?? ''}`;
-  }
-  if (event.type === 'posture_change') {
-    return `${event.type}|${event.timestamp}|${event.metadata?.posture ?? ''}`;
-  }
-  if (event.type === 'media_track_change') {
-    return `${event.type}|${event.timestamp}|${event.packageName ?? ''}|${event.metadata?.title ?? ''}`;
-  }
-  return `${event.type}|${event.timestamp}|${event.packageName ?? ''}`;
-}
 
 function getDb() {
   if (!db) {
@@ -290,6 +276,43 @@ export async function getMislabeledPackageNames(): Promise<string[]> {
   return (result.rows as Array<{ package_name: string }>)
     .map((row) => row.package_name)
     .filter(Boolean);
+}
+
+export interface AppUsageRecord {
+  packageName: string;
+  appLabel: string | null;
+  lastTimestamp: number;
+  eventCount: number;
+}
+
+/** 按最近使用排序的去重 App 列表 */
+export async function getDistinctAppUsage(limit = 80): Promise<AppUsageRecord[]> {
+  const database = getDb();
+  const result = await database.execute(
+    `SELECT
+       package_name,
+       MAX(app_label) AS app_label,
+       MAX(timestamp) AS last_timestamp,
+       COUNT(*) AS event_count
+     FROM ${EVENTS_TABLE}
+     WHERE package_name IS NOT NULL
+     GROUP BY package_name
+     ORDER BY last_timestamp DESC
+     LIMIT ?`,
+    [limit],
+  );
+
+  return (result.rows as Array<{
+    package_name: string;
+    app_label: string | null;
+    last_timestamp: number;
+    event_count: number;
+  }>).map((row) => ({
+    packageName: row.package_name,
+    appLabel: row.app_label,
+    lastTimestamp: row.last_timestamp,
+    eventCount: row.event_count,
+  }));
 }
 
 export async function clearAllEvents(): Promise<void> {

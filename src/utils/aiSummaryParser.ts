@@ -15,7 +15,7 @@ export function parseAiSummarySections(content: string): AiSummarySection[] {
     return [{ title: '总结', body: trimmed }];
   }
 
-  return markers.map((match, index) => {
+  const sections = markers.map((match, index) => {
     const title = match[1].trim();
     const bodyStart = (match.index ?? 0) + match[0].length;
     const bodyEnd =
@@ -25,4 +25,25 @@ export function parseAiSummarySections(content: string): AiSummarySection[] {
       body: trimmed.slice(bodyStart, bodyEnd).trim(),
     };
   });
+
+  const preambleEnd = markers[0]?.index ?? 0;
+  if (preambleEnd > 0 && sections[0]) {
+    const preamble = trimmed.slice(0, preambleEnd).trim();
+    if (preamble) {
+      sections[0] = {
+        ...sections[0],
+        body: sections[0].body ? `${preamble}\n${sections[0].body}` : preamble,
+      };
+    }
+  }
+
+  const sectionsWithBody = sections.filter((section) => section.body.length > 0);
+  if (sectionsWithBody.length > 0) {
+    return sectionsWithBody;
+  }
+
+  return sections.map((section) => ({
+    ...section,
+    body: '（本节暂无内容）',
+  }));
 }

@@ -131,6 +131,35 @@ export async function syncNativeEvents(): Promise<BehaviorEvent[]> {
   return result.events;
 }
 
+export async function getPendingEventCount(): Promise<number> {
+  if (Platform.OS !== 'android') {
+    return 0;
+  }
+  return BehaviorMonitor.getPendingEventCount();
+}
+
+export async function getPersistedEventCount(): Promise<number> {
+  if (Platform.OS !== 'android') {
+    return 0;
+  }
+  return BehaviorMonitor.getPersistedEventCount();
+}
+
+/** 手动按天数回溯 UsageStats 对账 */
+export async function manualReconcileEvents(lookbackDays: number): Promise<{
+  reconciled: number;
+  events: BehaviorEvent[];
+}> {
+  if (Platform.OS !== 'android') {
+    return { reconciled: 0, events: [] };
+  }
+
+  const since = Date.now() - lookbackDays * 24 * 60 * 60 * 1000;
+  const reconciledEvents = await BehaviorMonitor.reconcileEvents(since);
+  const reconciled = reconciledEvents.length > 0 ? await insertEvents(reconciledEvents) : 0;
+  return { reconciled, events: reconciledEvents };
+}
+
 export async function getMonitorStatus() {
   if (Platform.OS !== 'android') {
     return {
@@ -140,6 +169,9 @@ export async function getMonitorStatus() {
       hasNotificationListenerAccess: false,
       isIgnoringBatteryOptimizations: true,
       hasActivityRecognitionPermission: false,
+      hasStepCounterSensor: false,
+      isStepCounterActive: false,
+      hasGooglePlayServices: false,
       manufacturer: '',
       romKeepAliveHint: '',
     };

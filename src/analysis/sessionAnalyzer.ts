@@ -1,6 +1,7 @@
 import { QUICK_SESSION_THRESHOLD_MS } from '../constants';
 import type { BehaviorEvent, DailySummary, PhoneSession } from '../types/event';
 import { getTodayDateString } from '../utils/dateUtils';
+import { resolveSessionForegroundEndTime } from './foregroundPeriodAnalyzer';
 
 const MEDIA_PLAY_TYPES = new Set<BehaviorEvent['type']>(['media_start', 'media_track_change']);
 const MEDIA_END_TYPES = new Set<BehaviorEvent['type']>(['media_pause', 'media_stop']);
@@ -79,7 +80,7 @@ export function buildSessions(events: BehaviorEvent[]): PhoneSession[] {
 }
 
 function finalizeSession(events: BehaviorEvent[], startTime: number): PhoneSession {
-  const endTime = events[events.length - 1]?.timestamp ?? startTime;
+  const endTime = resolveSessionForegroundEndTime(events, startTime);
   const durationMs = Math.max(0, endTime - startTime);
   const apps = [
     ...new Set(

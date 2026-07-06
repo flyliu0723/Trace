@@ -1,4 +1,6 @@
 import type { BehaviorEvent } from '../types/event';
+import { isLauncherApp } from './launcherFilter';
+import { buildForegroundPeriods } from './foregroundPeriodAnalyzer';
 
 /** 触发器分析默认时间窗口（毫秒） */
 export const DEFAULT_TRIGGER_WINDOW_MS = 30_000;
@@ -18,13 +20,27 @@ export interface AppTransition {
   gapMs: number;
 }
 
-interface ForegroundApp {
+export interface ForegroundApp {
   packageName: string;
   appLabel: string;
   timestamp: number;
 }
 
-/** 提取去重后的前台 App 序列 */
+export interface AppDwellBlock {
+  packageName: string;
+  appLabel: string;
+  durationMs: number;
+  startTime: number;
+}
+
+export interface AggregatedAppStat {
+  packageName: string;
+  appLabel: string;
+  durationMs: number;
+  visitCount: number;
+}
+
+/** 提取去重后的前台 App 序列（含 Launcher，保留原始粒度） */
 export function extractAppSequence(events: BehaviorEvent[]): ForegroundApp[] {
   const sequence: ForegroundApp[] = [];
   let lastPkg = '';
@@ -49,12 +65,78 @@ export function extractAppSequence(events: BehaviorEvent[]): ForegroundApp[] {
   return sequence;
 }
 
+/** 提取展示用前台序列（过滤 Launcher 中间态） */
+export function extractDisplayAppSequence(events: BehaviorEvent[]): ForegroundApp[] {
+  return extractAppSequence(events).filter(
+    (item) => !isLauncherApp(item.packageName, item.appLabel),
+  );
+}
+
+/** 按时间顺序合并连续停留，计算各 App 段时长 */
+export function buildChronologicalAppBlocks(
+  events: BehaviorEvent[],
+  sessionEndTime: number,
+): AppDwellBlock[] {
+  const sessionStart = events[0]?.timestamp ?? 0;
+  const periods = buildForegroundPeriods(events).filter(
+    (period) => period.endTime > sessionStart && period.startTime < sessionEndTime,
+  );
+
+  const blocks: AppDwellBlock[] = [];
+
+  for (const period of periods) {
+    const startTime = Math.max(period.startTime, sessionStart);
+    const endTime = Math.min(period.endTime, sessionEndTime);
+    const durationMs = Math.max(0, endTime - startTime);
+    if (durationMs <= 0) {
+      continue;
+    }
+
+    const lastBlock = blocks[blocks.length - 1];
+    if (lastBlock && lastBlock.packageName === period.packageName) {
+      lastBlock.durationMs += durationMs;
+      continue;
+    }
+
+    blocks.push({
+      packageName: period.packageName,
+      appLabel: period.appLabel,
+      durationMs,
+      startTime,
+    });
+  }
+
+  return blocks;
+}
+
+/** 按 App 聚合停留时长与进入次数 */
+export function buildAggregatedAppStats(blocks: AppDwellBlock[]): AggregatedAppStat[] {
+  const statMap = new Map<string, AggregatedAppStat>();
+
+  for (const block of blocks) {
+    const existing = statMap.get(block.packageName);
+    if (existing) {
+      existing.durationMs += block.durationMs;
+      existing.visitCount += 1;
+      continue;
+    }
+    statMap.set(block.packageName, {
+      packageName: block.packageName,
+      appLabel: block.appLabel,
+      durationMs: block.durationMs,
+      visitCount: 1,
+    });
+  }
+
+  return [...statMap.values()].sort((a, b) => b.durationMs - a.durationMs);
+}
+
 /** 分析 App 跳转触发器（A 打开后 N 秒内打开 B） */
 export function analyzePathTriggers(
   events: BehaviorEvent[],
   windowMs = DEFAULT_TRIGGER_WINDOW_MS,
 ): PathTrigger[] {
-  const sequence = extractAppSequence(events);
+  const sequence = extractDisplayAppSequence(events);
   const transitionCounts = new Map<string, number>();
   const toAppTotals = new Map<string, number>();
 

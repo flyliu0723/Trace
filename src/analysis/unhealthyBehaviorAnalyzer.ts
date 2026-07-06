@@ -58,6 +58,23 @@ const PHYSICAL_ACTIVITIES = new Set<PhysicalContext>([
   'UNKNOWN',
 ]);
 
+const WALKING_ACTIVITIES = new Set(['WALKING', 'RUNNING', 'ON_FOOT']);
+
+function getWalkingCoverage(
+  startTime: number,
+  endTime: number,
+  timeline: TimelinePoint[],
+): number {
+  let maxCoverage = 0;
+  for (const activity of WALKING_ACTIVITIES) {
+    maxCoverage = Math.max(
+      maxCoverage,
+      getContextCoverage(startTime, endTime, timeline, activity),
+    );
+  }
+  return maxCoverage;
+}
+
 function buildActivityTimeline(events: BehaviorEvent[]): TimelinePoint[] {
   const timeline: TimelinePoint[] = [];
   for (const event of events) {
@@ -250,7 +267,7 @@ export function analyzeUnhealthyBehaviors(events: BehaviorEvent[]): UnhealthyBeh
   for (const segment of screenSegments) {
     const walkingCoverage =
       activityTimeline.length > 0
-        ? getContextCoverage(segment.startTime, segment.endTime, activityTimeline, 'WALKING')
+        ? getWalkingCoverage(segment.startTime, segment.endTime, activityTimeline)
         : 0;
     const lyingCoverage =
       postureTimeline.length > 0

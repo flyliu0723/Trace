@@ -1,9 +1,12 @@
+import { getAppCategoryOverride } from '../services/appCategoryOverrides';
+
 /** App 行为分类 */
 export type AppCategory =
   | 'utility'
   | 'social'
   | 'entertainment'
   | 'shopping'
+  | 'reading'
   | 'navigation'
   | 'media'
   | 'work'
@@ -19,6 +22,11 @@ const PACKAGE_CATEGORY: Record<string, AppCategory> = {
   'com.zhihu.android': 'entertainment',
   'tv.danmaku.bili': 'entertainment',
   'com.bilibili.app.in': 'entertainment',
+  'com.example.piliplus': 'entertainment',
+  'com.example.piliplus.dev': 'entertainment',
+  'com.example.piliplus.debug': 'entertainment',
+  'com.fongmi.android.tv': 'entertainment',
+  'com.twitter.android': 'entertainment',
   'com.netease.cloudmusic': 'media',
   'com.tencent.qqmusic': 'media',
   'app.podcast.cosmos': 'media',
@@ -26,6 +34,9 @@ const PACKAGE_CATEGORY: Record<string, AppCategory> = {
   'com.eg.android.AlipayGphone': 'utility',
   'com.taobao.taobao': 'shopping',
   'com.jingdong.app.mall': 'shopping',
+  'com.tencent.weread': 'reading',
+  'com.dedao.juvenile': 'reading',
+  'com.luojilab.player': 'reading',
   'com.baidu.BaiduMap': 'navigation',
   'com.autonavi.minimap': 'navigation',
   'com.android.chrome': 'work',
@@ -43,12 +54,20 @@ const LABEL_CATEGORY: Record<string, AppCategory> = {
   小红书: 'entertainment',
   哔哩哔哩: 'entertainment',
   B站: 'entertainment',
+  PiliPlus: 'entertainment',
+  影视: 'entertainment',
+  Fongmi: 'entertainment',
+  影視TV: 'entertainment',
+  Twitter: 'entertainment',
+  X: 'entertainment',
   网易云音乐: 'media',
   QQ音乐: 'media',
   小宇宙: 'media',
   支付宝: 'utility',
   淘宝: 'shopping',
   京东: 'shopping',
+  微信读书: 'reading',
+  得到: 'reading',
   高德地图: 'navigation',
   百度地图: 'navigation',
   美团: 'utility',
@@ -61,6 +80,7 @@ const CATEGORY_LABELS: Record<AppCategory, string> = {
   social: '社交',
   entertainment: '娱乐',
   shopping: '购物',
+  reading: '阅读',
   navigation: '出行',
   media: '音频',
   work: '工作',
@@ -68,6 +88,10 @@ const CATEGORY_LABELS: Record<AppCategory, string> = {
 };
 
 export function classifyApp(packageName?: string, appLabel?: string): AppCategory {
+  const override = getAppCategoryOverride(packageName);
+  if (override) {
+    return override;
+  }
   if (packageName && PACKAGE_CATEGORY[packageName]) {
     return PACKAGE_CATEGORY[packageName];
   }
@@ -87,6 +111,7 @@ export const CATEGORY_COLORS: Record<AppCategory, string> = {
   social: '#B48EAD',
   entertainment: '#D08770',
   shopping: '#EBCB8B',
+  reading: '#6B9E8A',
   navigation: '#88C0D0',
   media: '#A3BE8C',
   work: '#81A1C1',
@@ -98,7 +123,7 @@ export function getCategoryColor(category: AppCategory): string {
 }
 
 /** 柔和圆角类别（社交/娱乐类） */
-const SOFT_RADIUS_CATEGORIES = new Set<AppCategory>(['social', 'entertainment', 'media']);
+const SOFT_RADIUS_CATEGORIES = new Set<AppCategory>(['social', 'entertainment', 'media', 'reading']);
 
 /** 硬朗圆角类别（工具/工作类） */
 const SHARP_RADIUS_CATEGORIES = new Set<AppCategory>(['work', 'utility', 'navigation', 'shopping']);
@@ -118,6 +143,7 @@ export const CATEGORY_LEGEND: AppCategory[] = [
   'social',
   'entertainment',
   'media',
+  'reading',
   'work',
   'shopping',
   'navigation',
@@ -127,6 +153,7 @@ export const CATEGORY_LEGEND: AppCategory[] = [
 export const PRODUCTIVE_CATEGORIES = new Set<AppCategory>([
   'utility',
   'shopping',
+  'reading',
   'navigation',
   'work',
 ]);

@@ -1,5 +1,6 @@
+export { buildDedupeKey } from './dedupeKey';
+export type { AppUsageRecord } from './eventRepository';
 export {
-  buildDedupeKey,
   clearAllEvents,
   fixMislabeledAppEvents,
   getEventsByDate,
@@ -7,6 +8,7 @@ export {
   getEventsInRange,
   getLastEventTimestamp,
   getOpenMediaPackageNames,
+  getDistinctAppUsage,
   getMislabeledPackageNames,
   getRecentEvents,
   getUnlockCountByDate,
@@ -27,5 +29,13 @@ export {
   setMonitorBannerDismissKey,
 } from './settingsRepository';
 export type { AiConfig } from './settingsRepository';
-export { getCachedSummary, saveCachedSummary, deleteCachedSummary } from './summaryRepository';
+export {
+  getCachedSummary,
+  getCachedWeeklySummary,
+  getCachedMonthlySummary,
+  saveCachedSummary,
+  deleteCachedSummary,
+} from './summaryRepository';
 export type { SummaryType } from './summaryRepository';
+export type { SyncLogEntry, SyncLogKind } from './syncLogRepository';
+export { getLastSyncLog, getRecentSyncLogs, saveSyncLog } from './syncLogRepository';
