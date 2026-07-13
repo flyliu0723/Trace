@@ -24,17 +24,28 @@ export interface DayDurationMetrics {
   level: CredibilityLevel;
 }
 
+/** 覆盖率展示：超过 100% 时不显示虚高百分比（采集口径含空档估算） */
+export function formatCoveragePercent(ratio: number | null): string | null {
+  if (ratio === null) {
+    return null;
+  }
+  if (ratio > 1) {
+    return '采集略高于系统';
+  }
+  return `覆盖 ${Math.round(ratio * 100)}%`;
+}
+
 /** 首页亮屏卡片：采集时长 + 系统参考 */
 export function formatDualDurationHint(metrics: DayDurationMetrics): string | undefined {
   if (metrics.systemMs <= 0) {
     return undefined;
   }
-  const percent = metrics.ratio !== null ? Math.round(metrics.ratio * 100) : null;
   const systemText = `系统 ${formatDuration(metrics.systemMs)}`;
-  if (percent === null) {
+  const coverage = formatCoveragePercent(metrics.ratio);
+  if (!coverage) {
     return systemText;
   }
-  return `${systemText} · 覆盖 ${percent}%`;
+  return `${systemText} · ${coverage}`;
 }
 
 export function getCredibilityBannerKey(credibility: DayCredibility | null): string | null {
@@ -55,7 +66,8 @@ export function getCredibilityBannerMessage(credibility: DayCredibility | null):
   ) {
     return null;
   }
-  const percent = credibility.ratio !== null ? Math.round(credibility.ratio * 100) : 0;
+  const percent =
+    credibility.ratio !== null ? Math.round(Math.min(credibility.ratio, 1) * 100) : 0;
   if (credibility.level === 'poor') {
     return `今日数据完整度偏低（${percent}%），建议检查权限或执行历史对账`;
   }
@@ -96,7 +108,10 @@ export function formatCredibilitySummary(
     }
     return '无法计算可信度';
   }
-  const percent = Math.round(ratio! * 100);
+  if (ratio !== null && ratio > 1) {
+    return `采集 ${formatDuration(collectedMs)} / 系统 ${formatDuration(systemMs)}（采集略高于系统）`;
+  }
+  const percent = Math.round((ratio ?? 0) * 100);
   return `采集 ${formatDuration(collectedMs)} / 系统 ${formatDuration(systemMs)}（${percent}%）`;
 }
 

@@ -1,5 +1,10 @@
 import type { BehaviorEvent } from '../types/event';
-import { MEDIA_PAUSE_MERGE_GAP_MS } from '../constants';
+import {
+  CONTEXT_MEDIA_MIN_SEGMENT_MS,
+  MEDIA_MAX_RECOVERY_BACKTRACK_MS,
+  MEDIA_MAX_UNCLOSED_SEGMENT_MS,
+  MEDIA_PAUSE_MERGE_GAP_MS,
+} from '../constants';
 import { classifyApp, PRODUCTIVE_CATEGORIES } from './appClassifier';
 import { formatDuration, formatTime } from './sessionAnalyzer';
 
@@ -133,6 +138,46 @@ export function formatMediaSegmentCountLabel(segmentCount: number, totalPauseCou
   return `${segmentCount} 段`;
 }
 
+function getDayEndTimestamp(startTime: number): number {
+  const start = new Date(startTime);
+  return new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate(),
+    23,
+    59,
+    59,
+    999,
+  ).getTime();
+}
+
+function isRecoveredMediaStart(event: BehaviorEvent): boolean {
+  return event.source === 'recovery' || event.metadata?.recovered === 'true';
+}
+
+function resolveSegmentStart(startEvent: BehaviorEvent, endTimestamp: number): number {
+  const rawStart = startEvent.timestamp;
+  if (!isRecoveredMediaStart(startEvent)) {
+    return rawStart;
+  }
+  return Math.max(rawStart, endTimestamp - MEDIA_MAX_RECOVERY_BACKTRACK_MS);
+}
+
+function resolveSegmentEnd(
+  startTime: number,
+  endTimestamp: number,
+  normallyClosed: boolean,
+): number {
+  if (normallyClosed) {
+    return endTimestamp;
+  }
+  return Math.min(
+    endTimestamp,
+    getDayEndTimestamp(startTime),
+    startTime + MEDIA_MAX_UNCLOSED_SEGMENT_MS,
+  );
+}
+
 function extractRawMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[] {
   const mediaEvents = [...events]
     .filter((e) => MEDIA_SEGMENT_START_TYPES.has(e.type) || MEDIA_END_TYPES.has(e.type))
@@ -141,19 +186,24 @@ function extractRawMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[
   const segments: MediaPlaybackSegment[] = [];
   let currentStart: BehaviorEvent | null = null;
 
-  const flushSegment = (endTimestamp: number) => {
-    if (!currentStart || endTimestamp <= currentStart.timestamp) {
+  const flushSegment = (endTimestamp: number, normallyClosed: boolean) => {
+    if (!currentStart) {
+      return;
+    }
+
+    const startTime = resolveSegmentStart(currentStart, endTimestamp);
+    const effectiveEnd = resolveSegmentEnd(startTime, endTimestamp, normallyClosed);
+    if (effectiveEnd <= startTime) {
       currentStart = null;
       return;
     }
 
-    const startTime = currentStart.timestamp;
     const appLabel = currentStart.appLabel ?? '音频应用';
     const hadWorkAppForeground = events.some((event) => {
       if (event.type !== 'app_foreground' || !event.packageName) {
         return false;
       }
-      if (event.timestamp < startTime || event.timestamp > endTimestamp) {
+      if (event.timestamp < startTime || event.timestamp > effectiveEnd) {
         return false;
       }
       return PRODUCTIVE_CATEGORIES.has(classifyApp(event.packageName, event.appLabel));
@@ -163,8 +213,8 @@ function extractRawMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[
       appLabel,
       title: currentStart.metadata?.title,
       startTime,
-      endTime: endTimestamp,
-      durationMs: endTimestamp - startTime,
+      endTime: effectiveEnd,
+      durationMs: effectiveEnd - startTime,
       primaryScene: getSceneFromTimestamp(startTime),
       hadWorkAppForeground,
     });
@@ -174,19 +224,19 @@ function extractRawMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[
   for (const event of mediaEvents) {
     if (MEDIA_SEGMENT_START_TYPES.has(event.type)) {
       if (currentStart !== null) {
-        flushSegment(event.timestamp);
+        flushSegment(event.timestamp, true);
       }
       currentStart = event;
       continue;
     }
     if (currentStart !== null) {
-      flushSegment(event.timestamp);
+      flushSegment(event.timestamp, true);
     }
   }
 
   if (currentStart !== null) {
     const lastTimestamp = events[events.length - 1]?.timestamp ?? Date.now();
-    flushSegment(lastTimestamp);
+    flushSegment(lastTimestamp, false);
   }
 
   return segments;
@@ -194,7 +244,9 @@ function extractRawMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[
 
 export function extractMediaSegments(events: BehaviorEvent[]): MediaPlaybackSegment[] {
   const rawSegments = extractRawMediaSegments(events);
-  return mergeMediaPauseSegments(rawSegments).filter((segment) => segment.durationMs >= 30_000);
+  return mergeMediaPauseSegments(rawSegments).filter(
+    (segment) => segment.durationMs >= CONTEXT_MEDIA_MIN_SEGMENT_MS,
+  );
 }
 
 /** 分析单日后台媒体播放的生活场景分布 */

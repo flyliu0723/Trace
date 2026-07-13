@@ -87,7 +87,7 @@ export function FocusChipsWall({ apps }: FocusChipsWallProps) {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.title}>专注勋章墙</Text>
+      <Text style={styles.title}>今日专注</Text>
       {validApps.length > 0 ? (
         <>
           <Text style={styles.subtitle}>今天这些 App 陪你进入了心流</Text>
@@ -119,7 +119,7 @@ export function FocusChipsWall({ apps }: FocusChipsWallProps) {
       ) : (
         <View style={styles.emptyBox}>
           <Text style={styles.emptyText}>
-            还没有专注勋章
+            还没有专注记录
           </Text>
           <Text style={styles.emptyText}>
             当你在某 App 里连续专注 ≥10 分钟，它会出现在这里

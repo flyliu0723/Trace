@@ -354,62 +354,37 @@ function formatEntertainmentPeriodPayload(
   compareLabel: string,
 ): string {
   const appLines = report.topApps
-    .map(
-      (app) =>
-        `- ${app.appLabel}：${formatDuration(app.durationMs)}，进入 ${app.visitCount} 次`,
-    )
-    .join('\n');
+    .slice(0, 5)
+    .map((app) => `${app.appLabel} ${formatDuration(app.durationMs)}/${app.visitCount}次`)
+    .join('，');
 
   const dayLines = report.weekDays
     .filter((day) => day.browseMs > 0)
     .map(
       (day) =>
-        `- ${formatDisplayDate(day.date)}：浏览 ${formatDuration(day.browseMs)}，进入 ${day.visitCount} 次${day.wanderingMs > 0 ? `，游离 ${formatDuration(day.wanderingMs)}` : ''}`,
+        `${formatDisplayDate(day.date)} ${formatDuration(day.browseMs)}${day.wanderingMs > 0 ? `(游离${formatDuration(day.wanderingMs)})` : ''}`,
     )
-    .join('\n');
+    .join('，');
 
   const triggerLines = (report.lostPathTriggers.length > 0 ? report.lostPathTriggers : report.topTriggers)
-    .map(
-      (trigger) =>
-        `- ${trigger.fromLabel} → ${trigger.toLabel}：${trigger.count} 次（${trigger.percentage}%）`,
-    )
-    .join('\n');
+    .slice(0, 4)
+    .map((trigger) => `${trigger.fromLabel}→${trigger.toLabel} ${trigger.count}次`)
+    .join('，');
 
   const trendLine = report.weekTrendPercent !== null
-    ? `较${compareLabel}总量变化约 ${report.weekTrendPercent > 0 ? '+' : ''}${report.weekTrendPercent}%`
-    : `暂无足够${compareLabel}数据做对比`;
+    ? `较${compareLabel}${report.weekTrendPercent > 0 ? '+' : ''}${report.weekTrendPercent}%`
+    : `无${compareLabel}对比`;
 
   const longestLine = report.longestBlock
-    ? `${report.longestBlock.appLabel} ${formatDuration(report.longestBlock.durationMs)}（${formatTime(report.longestBlock.startTime)} 开始）`
-    : '暂无';
+    ? `${report.longestBlock.appLabel} ${formatDuration(report.longestBlock.durationMs)}`
+    : '无';
 
-  return `统计区间：${rangeLabel}
-
-## ${periodLabel}娱乐浏览概览
-- 总浏览：${formatDuration(report.totalBrowseMs)}
-- 进入次数：${report.totalVisitCount} 次
-- 相关切换：${report.totalSwitchCount} 次
-- 单次沉迷（>30 分钟）：${report.deepBrowseCount} 次
-- 无意识快闪（<2 分钟）：${report.impulsiveOpenCount} 次
-- 最长连续浏览：${longestLine}
-- 高峰时段：${report.peakHourLabel ?? '暂无'}
-- 有浏览的天数：${report.weekActiveDays}/${report.weekDays.length}
-- 日均（有浏览日）：${formatDuration(report.weekAvgMs)}
-- ${trendLine}
-
-## 各 App 使用
-${appLines || '暂无'}
-
-## 迷失链路
-${triggerLines || '暂无'}
-
-## 游离刷屏
-- 游离段数：${report.wandering.sessionCount}
-- 合计时长：${formatDuration(report.wandering.totalMs)}
-- 切换次数：${report.wandering.totalSwitchCount}
-
-## 逐日分布
-${dayLines || '暂无'}`;
+  return `区间：${rangeLabel}
+总浏览 ${formatDuration(report.totalBrowseMs)}｜进入${report.totalVisitCount}次｜切换${report.totalSwitchCount}次｜沉迷(>30分)${report.deepBrowseCount}次｜快闪(<2分)${report.impulsiveOpenCount}次｜最长${longestLine}｜高峰${report.peakHourLabel ?? '无'}｜${report.weekActiveDays}/${report.weekDays.length}天｜${trendLine}
+App：${appLines || '无'}
+跳转：${triggerLines || '无'}
+游离：${report.wandering.sessionCount}段 ${formatDuration(report.wandering.totalMs)}/${report.wandering.totalSwitchCount}切
+逐日：${dayLines || '无'}`;
 }
 
 /** @deprecated 仅保留兼容，AI 已改用周/月 payload */

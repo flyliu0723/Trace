@@ -4,6 +4,8 @@ import { useTheme } from '../context/ThemeContext';
 import { RootNavigator } from './RootNavigator';
 import { SettingsNavigator } from './SettingsNavigator';
 import { LifeSpectrumHubScreen } from '../screens/LifeSpectrumHubScreen';
+import { AchievementsScreen } from '../screens/AchievementsScreen';
+import { AchievementDetailScreen } from '../screens/AchievementDetailScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -32,6 +34,32 @@ export function RootStackNavigator() {
           animation: 'slide_from_right',
           headerShown: true,
           title: '生活光谱',
+          headerBackTitle: '返回',
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="Achievements"
+        component={AchievementsScreen}
+        options={{
+          animation: 'slide_from_right',
+          headerShown: true,
+          title: '成就',
+          headerBackTitle: '返回',
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="AchievementDetail"
+        component={AchievementDetailScreen}
+        options={{
+          animation: 'slide_from_right',
+          headerShown: true,
+          title: '成就详情',
           headerBackTitle: '返回',
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,

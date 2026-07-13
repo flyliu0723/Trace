@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import {
   Alert,
   Pressable,
+  Switch,
   Text,
   TextInput,
   View,
@@ -9,14 +10,16 @@ import {
 import {
   DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
+  getAiAutoDailyEnabled,
   getAiConfig,
   saveAiConfig,
+  setAiAutoDailyEnabled,
   type AiConfig,
 } from '../db';
 import { testAiConnection } from '../services/aiSummaryService';
 import { useTheme } from '../context/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
-import { radius, spacing } from '../theme';
+import { radius, spacing, typography } from '../theme';
 
 export function AiConfigSection() {
   const { colors } = useTheme();
@@ -25,6 +28,7 @@ export function AiConfigSection() {
     baseUrl: DEFAULT_AI_BASE_URL,
     model: DEFAULT_AI_MODEL,
   });
+  const [autoDaily, setAutoDaily] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -84,11 +88,36 @@ export function AiConfigSection() {
       fontSize: 15,
       fontWeight: '600',
     },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      marginTop: spacing.lg,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderLight,
+    },
+    switchCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    switchTitle: {
+      ...typography.body,
+      color: colors.textPrimary,
+      fontWeight: '600',
+    },
+    switchHint: {
+      ...typography.caption,
+      color: colors.textMuted,
+      lineHeight: 18,
+    },
   }));
 
   const loadConfig = useCallback(async () => {
-    const saved = await getAiConfig();
+    const [saved, enabled] = await Promise.all([getAiConfig(), getAiAutoDailyEnabled()]);
     setConfig(saved);
+    setAutoDaily(enabled);
     setLoaded(true);
   }, []);
 
@@ -111,7 +140,7 @@ export function AiConfigSection() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveAiConfig(config);
+      await Promise.all([saveAiConfig(config), setAiAutoDailyEnabled(autoDaily)]);
       Alert.alert('已保存');
     } catch (error) {
       Alert.alert('失败', String(error));
@@ -160,11 +189,29 @@ export function AiConfigSection() {
         autoCorrect={false}
       />
 
+      <View style={styles.switchRow}>
+        <View style={styles.switchCopy}>
+          <Text style={styles.switchTitle}>自动补写昨日日报</Text>
+          <Text style={styles.switchHint}>
+            打开 App 或回到前台时，若昨日尚无日报且已配置 API，将自动生成并缓存。
+          </Text>
+        </View>
+        <Switch
+          value={autoDaily}
+          onValueChange={setAutoDaily}
+          trackColor={{ false: colors.border, true: colors.accent + '88' }}
+          thumbColor={autoDaily ? colors.accent : colors.surfaceElevated}
+        />
+      </View>
+
       <View style={styles.buttonRow}>
         <Pressable style={styles.testButton} onPress={handleTest} disabled={testing || saving}>
           <Text style={styles.testButtonText}>{testing ? '测试中…' : '测试连接'}</Text>
         </Pressable>
-        <Pressable style={[styles.saveButton, { flex: 1, marginTop: 0 }]} onPress={handleSave} disabled={saving || testing}>
+        <Pressable
+          style={[styles.saveButton, { flex: 1, marginTop: 0 }]}
+          onPress={handleSave}
+          disabled={saving || testing}>
           <Text style={styles.saveButtonText}>{saving ? '保存中' : '保存'}</Text>
         </Pressable>
       </View>

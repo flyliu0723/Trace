@@ -16,6 +16,12 @@ export const FOREGROUND_IDLE_CAP_MS = 5 * 60_000;
 /** 媒体暂停后视为同一段收听的最大间隔（毫秒） */
 export const MEDIA_PAUSE_MERGE_GAP_MS = 60_000;
 
+/** 无 media_stop/pause 收尾时，单段收听最长估算（毫秒），避免睡着后虚高 */
+export const MEDIA_MAX_UNCLOSED_SEGMENT_MS = 90 * 60_000;
+
+/** 服务恢复时用播放进度倒推起点的最大回溯（毫秒），避免把节目进度当成收听时长 */
+export const MEDIA_MAX_RECOVERY_BACKTRACK_MS = 5 * 60_000;
+
 /** 前台服务通知渠道 */
 export const MONITOR_NOTIFICATION_CHANNEL_ID = 'spendwhere_monitor';
 

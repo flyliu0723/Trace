@@ -13,6 +13,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { buildDayInsights, type DayInsights } from '../analysis/insightEngine';
 import { buildWanderingDayView } from '../analysis/wanderingViewBuilder';
 import { AiInsightsPanel } from '../components/AiInsightsPanel';
+import { AchievementEntryCard } from '../components/AchievementEntryCard';
 import { ContextMediaCard } from '../components/ContextMediaCard';
 import { DateNavigator } from '../components/DateNavigator';
 import { InsightCard } from '../components/InsightCard';
@@ -27,17 +28,21 @@ import { WanderingSummaryCard } from '../components/WanderingSummaryCard';
 import { useSelectedDate } from '../context/DateContext';
 import { useTheme } from '../context/ThemeContext';
 import {
+  getAchievementsSeenAt,
   getAiConfig,
   getCachedMonthlySummary,
   getCachedSummary,
   getCachedWeeklySummary,
   getEventsByDate,
   getEventsForDates,
+  getLatestUnlockPerRule,
   isAiConfigured,
   saveCachedSummary,
+  type StoredAchievement,
 } from '../db';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { generateDailyAiSummary, generateMonthlyAiSummary, generateWeeklyAiSummary } from '../services/aiSummaryService';
+import { maybeEvaluateAchievements } from '../services/achievementService';
 import { ensureSynced } from '../services/syncCoordinator';
 import type { BehaviorEvent } from '../types/event';
 import {
@@ -72,6 +77,8 @@ export function InsightsScreen() {
   const [dailyAiLoading, setDailyAiLoading] = useState(false);
   const [weeklyAiLoading, setWeeklyAiLoading] = useState(false);
   const [monthlyAiLoading, setMonthlyAiLoading] = useState(false);
+  const [achievementUnlocks, setAchievementUnlocks] = useState<StoredAchievement[]>([]);
+  const [achievementsHasNew, setAchievementsHasNew] = useState(false);
 
   const styles = useThemedStyles(({ colors: c }) => ({
     screen: {
@@ -170,6 +177,14 @@ export function InsightsScreen() {
     setDailyAiSummary(cachedDaily);
     setWeeklyAiSummary(cachedWeekly);
     setMonthlyAiSummary(cachedMonthly);
+
+    await maybeEvaluateAchievements();
+    const [latestUnlocks, seenAt] = await Promise.all([
+      getLatestUnlockPerRule(),
+      getAchievementsSeenAt(),
+    ]);
+    setAchievementUnlocks(latestUnlocks);
+    setAchievementsHasNew(latestUnlocks.some((item) => item.unlockedAt > seenAt));
   }, [selectedDate, weekDates, monthDates, dataRevision]);
 
   useEffect(() => {
@@ -310,6 +325,8 @@ export function InsightsScreen() {
               : undefined
           }
         />
+
+        <AchievementEntryCard unlocks={achievementUnlocks} hasNew={achievementsHasNew} />
 
         <ContextMediaCard report={data?.contextMedia ?? null} />
 

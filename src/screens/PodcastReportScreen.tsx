@@ -1,9 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
-  RefreshControl,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -17,10 +14,9 @@ import {
 import { formatMediaSegmentCountLabel } from '../analysis/mediaSceneAnalyzer';
 import { formatDuration, formatTime } from '../analysis/sessionAnalyzer';
 import { AppIconBadge } from '../components/HourlyAppRow';
-import { DateNavigator } from '../components/DateNavigator';
 import { DimensionHeroCard } from '../components/DimensionHeroCard';
-import { ScreenContainer } from '../components/ScreenContainer';
 import { TopicAiPanel } from '../components/TopicAiPanel';
+import { TopicReportScaffold } from '../components/TopicReportScaffold';
 import { useSelectedDate } from '../context/DateContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -391,51 +387,20 @@ export function PodcastReportScreen({ embedded = false }: { embedded?: boolean }
   };
 
   const maxWeekMs = Math.max(...(report?.weekDays.map((day) => day.listeningMs) ?? [1]), 1);
+  const isEmpty = !report || (!report.hasData && report.weekTotalMs === 0);
 
-  if (loading) {
-    const loader = (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} size="large" />
-      </View>
-    );
-    if (embedded) {
-      return loader;
-    }
-    return (
-      <ScreenContainer style={styles.screen} textured={false}>
-        {loader}
-      </ScreenContainer>
-    );
-  }
+  return (
+    <TopicReportScaffold
+      embedded={embedded}
+      loading={loading}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      isEmpty={isEmpty}
+      emptyIcon="headset-outline"
+      emptyMessage={`${formatDisplayDate(selectedDate)} 没有检测到播客或音乐播放记录。\n请确认已开启通知使用权，并使用支持 MediaSession 的播放器（如小宇宙、网易云）。`}
+      loadingText="正在整理收听数据…">
+      {report ? (
 
-  if (!report || (!report.hasData && report.weekTotalMs === 0)) {
-    const emptyBody = (
-      <View style={styles.emptyWrap}>
-        <Ionicons name="headset-outline" size={40} color={colors.textMuted} />
-        <Text style={styles.emptyText}>
-          {formatDisplayDate(selectedDate)} 没有检测到播客或音乐播放记录。{'\n'}
-          请确认已开启通知使用权，并使用支持 MediaSession 的播放器（如小宇宙、网易云）。
-        </Text>
-      </View>
-    );
-    if (embedded) {
-      return emptyBody;
-    }
-    return (
-      <ScreenContainer style={styles.screen} textured={false}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
-          }>
-          <DateNavigator />
-          {emptyBody}
-        </ScrollView>
-      </ScreenContainer>
-    );
-  }
-
-  const reportBody = (
     <>
         {report.hasData ? (
           <DimensionHeroCard
@@ -601,23 +566,7 @@ export function PodcastReportScreen({ embedded = false }: { embedded?: boolean }
           }}
         />
     </>
-  );
-
-  if (embedded) {
-    return <View>{reportBody}</View>;
-  }
-
-  return (
-    <ScreenContainer style={styles.screen} textured={false}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
-        }>
-        <DateNavigator />
-        {reportBody}
-      </ScrollView>
-    </ScreenContainer>
+      ) : null}
+    </TopicReportScaffold>
   );
 }

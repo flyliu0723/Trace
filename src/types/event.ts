@@ -61,6 +61,7 @@ export interface DailySummary {
   sessionCount: number;
   quickSessionCount: number;
   totalForegroundMs: number;
+  /** 真实 App 前台停留合计（排除解锁空档与放下后的虚高），首页「亮屏」用此字段 */
   activeInteractionMs: number;
   passiveMediaMs: number;
 }

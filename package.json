@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
-    "android:release": "react-native build-android --tasks assembleRelease",
+    "android:release": "set NUMBER_OF_PROCESSORS=1&& set NODE_OPTIONS=--max-old-space-size=4096&& set CMAKE_BUILD_PARALLEL_LEVEL=1&& react-native build-android --tasks assembleRelease",
     "android:bundle": "react-native build-android --tasks bundleRelease",
     "ios": "react-native run-ios",
     "lint": "eslint .",

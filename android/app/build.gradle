@@ -10,6 +10,9 @@ buildDir = file("${project.projectDir}/build_out")
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    // Release 打包时 Metro 默认内存偏小，Windows 上易 OOM
+    nodeExecutableAndArgs = ["node", "--max-old-space-size=4096"]
+
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
     // root = file("../../")
@@ -87,6 +90,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 3
         versionName "0.1.1"
+        ndk {
+            abiFilters "arm64-v8a"
+        }
     }
     signingConfigs {
         debug {

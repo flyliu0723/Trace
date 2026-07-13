@@ -263,7 +263,10 @@ object MediaSessionWatcher {
   private fun emitRecoveredMediaStart(context: Context, controller: MediaController) {
     val pkg = controller.packageName
     val position = controller.playbackState?.position ?: 0L
-    val estimatedStart = maxOf(0L, System.currentTimeMillis() - position)
+    val now = System.currentTimeMillis()
+    val rawEstimatedStart = maxOf(0L, now - position)
+    // position 是节目进度而非本次收听时长，回溯过长会把节目进度误算成收听
+    val estimatedStart = maxOf(rawEstimatedStart, now - MAX_RECOVERY_BACKTRACK_MS)
     val metadata = MediaMetadataHelper.buildMetadata(controller).toMutableMap()
     metadata["recovered"] = "true"
 
@@ -371,4 +374,5 @@ object MediaSessionWatcher {
   }
 
   private const val POLL_INTERVAL_MS = 3_000L
+  private const val MAX_RECOVERY_BACKTRACK_MS = 5 * 60_000L
 }

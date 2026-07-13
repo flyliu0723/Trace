@@ -214,9 +214,7 @@ function buildBucket(
 
 /** 交叉 activity 时间线与媒体片段，产出行进/步行/后台收听报告 */
 export function analyzeContextMedia(events: BehaviorEvent[]): DailyContextMediaReport | null {
-  const mediaSegments = extractMediaSegments(events).filter(
-    (segment) => segment.durationMs >= CONTEXT_MEDIA_MIN_SEGMENT_MS,
-  );
+  const mediaSegments = extractMediaSegments(events);
   if (mediaSegments.length === 0) {
     return null;
   }

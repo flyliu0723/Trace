@@ -3,8 +3,8 @@
  * @format
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, StatusBar, StyleSheet, View } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DateProvider } from './src/context/DateContext';
@@ -12,6 +12,8 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { isOnboardingCompleted, setOnboardingCompleted } from './src/db';
 import { RootStackNavigator } from './src/navigation/RootStackNavigator';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { maybeEvaluateAchievements } from './src/services/achievementService';
+import { maybeAutoGenerateYesterdayDailySummary } from './src/services/autoDailySummaryService';
 import { ensureDemoDataInDev } from './src/services/demoDataService';
 import { initAppCategoryOverrides } from './src/services/appCategoryOverrides';
 import { scheduleBackgroundSync } from './src/services/syncCoordinator';
@@ -20,6 +22,7 @@ function AppContent() {
   const { colors, isDark } = useTheme();
   const [booting, setBooting] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const foregroundJobsStarted = useRef(false);
 
   const bootstrap = useCallback(async () => {
     await initAppCategoryOverrides();
@@ -40,6 +43,29 @@ function AppContent() {
       .catch(console.error)
       .finally(() => setBooting(false));
   }, [bootstrap]);
+
+  useEffect(() => {
+    if (booting || showOnboarding) {
+      return;
+    }
+
+    const runForegroundJobs = () => {
+      maybeAutoGenerateYesterdayDailySummary().catch(console.warn);
+      maybeEvaluateAchievements().catch(console.warn);
+    };
+
+    if (!foregroundJobsStarted.current) {
+      foregroundJobsStarted.current = true;
+      runForegroundJobs();
+    }
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        runForegroundJobs();
+      }
+    });
+    return () => subscription.remove();
+  }, [booting, showOnboarding]);
 
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false);

@@ -1,47 +1,27 @@
 import { QUICK_SESSION_THRESHOLD_MS } from '../constants';
 import type { BehaviorEvent, DailySummary, PhoneSession } from '../types/event';
 import { getTodayDateString } from '../utils/dateUtils';
-import { resolveSessionForegroundEndTime } from './foregroundPeriodAnalyzer';
-
-const MEDIA_PLAY_TYPES = new Set<BehaviorEvent['type']>(['media_start', 'media_track_change']);
-const MEDIA_END_TYPES = new Set<BehaviorEvent['type']>(['media_pause', 'media_stop']);
+import {
+  buildForegroundPeriods,
+  resolveSessionForegroundEndTime,
+} from './foregroundPeriodAnalyzer';
+import { extractMediaSegments } from './mediaSceneAnalyzer';
 
 export function getTodayDate(): string {
   return getTodayDateString();
 }
 
-/** 从媒体事件计算实际播放时长（排除暂停时段） */
+/** 后台播放时长：与播客报告共用片段切分（含暂停合并、未闭合封顶、recovery 限制） */
 export function calculatePassiveMediaMs(events: BehaviorEvent[]): number {
-  const mediaEvents = events
-    .filter((e) => MEDIA_PLAY_TYPES.has(e.type) || MEDIA_END_TYPES.has(e.type))
-    .sort((a, b) => a.timestamp - b.timestamp);
+  return extractMediaSegments(events).reduce((sum, segment) => sum + segment.durationMs, 0);
+}
 
-  let total = 0;
-  let playStart: number | null = null;
-
-  for (const event of mediaEvents) {
-    if (event.type === 'media_track_change') {
-      continue;
-    }
-    if (event.type === 'media_start') {
-      if (playStart === null) {
-        playStart = event.timestamp;
-      }
-      continue;
-    }
-
-    if (playStart !== null) {
-      total += Math.max(0, event.timestamp - playStart);
-      playStart = null;
-    }
-  }
-
-  if (playStart !== null) {
-    const lastTimestamp = events[events.length - 1]?.timestamp ?? Date.now();
-    total += Math.max(0, lastTimestamp - playStart);
-  }
-
-  return total;
+/** 主动交互/亮屏：按 App 前台连续停留合计，不含解锁空档与放下后的虚高 */
+export function calculateActiveInteractionMs(events: BehaviorEvent[]): number {
+  return buildForegroundPeriods(events).reduce(
+    (sum, period) => sum + Math.max(0, period.endTime - period.startTime),
+    0,
+  );
 }
 
 /** 将事件流切分为手机使用会话 */
@@ -107,13 +87,12 @@ export function buildDailySummary(date: string, events: BehaviorEvent[]): DailyS
   const unlockCount = events.filter((e) => e.type === 'unlock').length;
   const quickSessionCount = sessions.filter((s) => s.isQuickSession).length;
   const passiveMediaMs = calculatePassiveMediaMs(events);
+  const activeInteractionMs = calculateActiveInteractionMs(events);
 
   let totalForegroundMs = 0;
   for (const session of sessions) {
     totalForegroundMs += session.durationMs;
   }
-
-  const activeInteractionMs = Math.max(0, totalForegroundMs);
 
   return {
     date,

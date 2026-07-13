@@ -141,6 +141,13 @@ export function DataHealthCard({ status, onSynced }: DataHealthCardProps) {
     rowValuePoor: {
       color: c.danger,
     },
+    metricHint: {
+      ...typography.caption,
+      color: c.textMuted,
+      lineHeight: 18,
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.sm,
+    },
     historyBlock: {
       borderTopWidth: 1,
       borderTopColor: c.borderLight,
@@ -334,6 +341,9 @@ export function DataHealthCard({ status, onSynced }: DataHealthCardProps) {
               {snapshot.credibility?.summary ?? '—'}
             </Text>
           </View>
+          <Text style={styles.metricHint}>
+            可信度对比「会话墙钟」与系统前台用量；首页「亮屏」则按 App 前台停留统计，二者口径不同。
+          </Text>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>同步时间</Text>
             <Text style={styles.rowValue}>{formatAbsoluteTime(lastSyncAt)}</Text>

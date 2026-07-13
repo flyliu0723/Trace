@@ -7,6 +7,9 @@ const MONITOR_BANNER_DISMISS_KEY = 'monitor_banner_dismiss';
 const AI_API_KEY = 'ai_api_key';
 const AI_BASE_URL = 'ai_base_url';
 const AI_MODEL = 'ai_model';
+const AI_AUTO_DAILY_KEY = 'ai_auto_daily';
+const AI_AUTO_DAILY_LAST_ATTEMPT_KEY = 'ai_auto_daily_last_attempt';
+const ACHIEVEMENTS_SEEN_AT_KEY = 'achievements_seen_at';
 
 export const DEFAULT_AI_BASE_URL = 'https://api.openai.com/v1';
 export const DEFAULT_AI_MODEL = 'gpt-4o-mini';
@@ -98,4 +101,32 @@ export async function saveAiConfig(config: AiConfig): Promise<void> {
 export async function isAiConfigured(): Promise<boolean> {
   const config = await getAiConfig();
   return config.apiKey.length > 0;
+}
+
+/** 打开 App 时自动补写昨日 AI 日报 */
+export async function getAiAutoDailyEnabled(): Promise<boolean> {
+  const value = await getSetting(AI_AUTO_DAILY_KEY);
+  return value === 'true';
+}
+
+export async function setAiAutoDailyEnabled(enabled: boolean): Promise<void> {
+  await setSetting(AI_AUTO_DAILY_KEY, enabled ? 'true' : 'false');
+}
+
+export async function getAiAutoDailyLastAttempt(): Promise<string | null> {
+  return getSetting(AI_AUTO_DAILY_LAST_ATTEMPT_KEY);
+}
+
+export async function setAiAutoDailyLastAttempt(date: string): Promise<void> {
+  await setSetting(AI_AUTO_DAILY_LAST_ATTEMPT_KEY, date);
+}
+
+export async function getAchievementsSeenAt(): Promise<number> {
+  const value = await getSetting(ACHIEVEMENTS_SEEN_AT_KEY);
+  const parsed = value ? Number(value) : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export async function setAchievementsSeenAt(timestamp: number): Promise<void> {
+  await setSetting(ACHIEVEMENTS_SEEN_AT_KEY, String(timestamp));
 }

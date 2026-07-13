@@ -1,19 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import type { PathTrigger } from '../analysis/pathAnalyzer';
 import { buildShoppingReport, type ShoppingReport } from '../analysis/shoppingReportAnalyzer';
 import { formatDuration, formatTime } from '../analysis/sessionAnalyzer';
 import { AppIconBadge } from '../components/HourlyAppRow';
-import { DateNavigator } from '../components/DateNavigator';
 import { DimensionHeroCard } from '../components/DimensionHeroCard';
-import { ScreenContainer } from '../components/ScreenContainer';
+import { TopicReportScaffold } from '../components/TopicReportScaffold';
 import { useSelectedDate } from '../context/DateContext';
 import { useTheme } from '../context/ThemeContext';
 import { getEventsForDates } from '../db';
@@ -222,51 +217,20 @@ export function ShoppingReportScreen({ embedded = false }: { embedded?: boolean 
   }, [loadData]);
 
   const maxWeekMs = Math.max(...(report?.weekDays.map((day) => day.durationMs) ?? [1]), 1);
+  const isEmpty = !report || (!report.hasData && report.weekTotalMs === 0);
 
-  if (loading) {
-    const loader = (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} size="large" />
-      </View>
-    );
-    if (embedded) {
-      return loader;
-    }
-    return (
-      <ScreenContainer style={styles.screen} textured={false}>
-        {loader}
-      </ScreenContainer>
-    );
-  }
+  return (
+    <TopicReportScaffold
+      embedded={embedded}
+      loading={loading}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      isEmpty={isEmpty}
+      emptyIcon="cart-outline"
+      emptyMessage={`${formatDisplayDate(selectedDate)} 没有检测到购物 App 使用记录。\n淘宝、京东、拼多多等使用后会出现在这里。`}
+      loadingText="正在整理购物浏览数据…">
+      {report ? (
 
-  if (!report || (!report.hasData && report.weekTotalMs === 0)) {
-    const emptyBody = (
-      <View style={styles.emptyWrap}>
-        <Ionicons name="bag-outline" size={40} color={colors.textMuted} />
-        <Text style={styles.emptyText}>
-          {formatDisplayDate(selectedDate)} 没有检测到购物 App 使用记录。{'\n'}
-          淘宝、京东等使用后会出现在这里。
-        </Text>
-      </View>
-    );
-    if (embedded) {
-      return emptyBody;
-    }
-    return (
-      <ScreenContainer style={styles.screen} textured={false}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
-          }>
-          <DateNavigator />
-          {emptyBody}
-        </ScrollView>
-      </ScreenContainer>
-    );
-  }
-
-  const reportBody = (
     <>
         {report.hasData ? (
           <DimensionHeroCard
@@ -395,23 +359,7 @@ export function ShoppingReportScreen({ embedded = false }: { embedded?: boolean 
           </Text>
         </View>
     </>
-  );
-
-  if (embedded) {
-    return <View>{reportBody}</View>;
-  }
-
-  return (
-    <ScreenContainer style={styles.screen} textured={false}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
-        }>
-        <DateNavigator />
-        {reportBody}
-      </ScrollView>
-    </ScreenContainer>
+      ) : null}
+    </TopicReportScaffold>
   );
 }

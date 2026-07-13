@@ -74,6 +74,22 @@ export const CREATE_SYNC_LOG_INDEX = `
   CREATE INDEX IF NOT EXISTS idx_sync_log_at ON ${SYNC_LOG_TABLE}(at DESC);
 `;
 
+export const ACHIEVEMENTS_TABLE = 'achievements';
+
+export const CREATE_ACHIEVEMENTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS ${ACHIEVEMENTS_TABLE} (
+    rule_id TEXT NOT NULL,
+    unlocked_at INTEGER NOT NULL,
+    occurrence INTEGER NOT NULL DEFAULT 1,
+    evidence TEXT,
+    PRIMARY KEY (rule_id, occurrence)
+  );
+`;
+
+export const CREATE_ACHIEVEMENTS_INDEX = `
+  CREATE INDEX IF NOT EXISTS idx_achievements_rule ON ${ACHIEVEMENTS_TABLE}(rule_id);
+`;
+
 /** 为旧版本数据库补充 dedupe_key 列 */
 export const ADD_DEDUPE_KEY_COLUMN = `
   ALTER TABLE ${EVENTS_TABLE} ADD COLUMN dedupe_key TEXT;

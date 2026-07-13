@@ -45,7 +45,7 @@ import {
   getWeekDatesMondayToSunday,
   isToday,
 } from '../utils/dateUtils';
-import { spacing } from '../theme';
+import { spacing, typography } from '../theme';
 
 const HOME_HORIZONTAL = 20;
 
@@ -99,6 +99,12 @@ export function HomeScreen() {
       color: c.textMuted,
       marginBottom: spacing.sm,
       marginTop: -spacing.xs,
+    },
+    metricLegend: {
+      ...typography.caption,
+      color: c.textMuted,
+      lineHeight: 18,
+      marginTop: spacing.sm,
     },
   }));
 
@@ -267,6 +273,9 @@ export function HomeScreen() {
             accentColor={colors.media}
           />
         </HomeMetricsGrid>
+        <Text style={styles.metricLegend}>
+          「亮屏」按 App 前台停留统计；覆盖率对比的是会话墙钟与系统用量，口径不同属正常。「后台」为播客/音乐播放时长。
+        </Text>
       </ScrollView>
     </ScreenContainer>
   );

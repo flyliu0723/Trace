@@ -32,10 +32,11 @@ import {
 const DAILY_MAX_TOKENS = 1200;
 const WEEKLY_MAX_TOKENS = 1200;
 const MONTHLY_MAX_TOKENS = 1400;
-const TOPIC_WEEKLY_MAX_TOKENS = 800;
-const TOPIC_MONTHLY_MAX_TOKENS = 1000;
+/** 播客/娱乐专题解读：payload 已压缩，输出限 220-300 字，预算留足推理模型 reasoning 余量 */
+const TOPIC_WEEKLY_MAX_TOKENS = 1200;
+const TOPIC_MONTHLY_MAX_TOKENS = 1500;
 
-const REASONING_MODEL_PATTERN = /^(o[13](-mini)?|deepseek-r|qwq|qvq)/i;
+const REASONING_MODEL_PATTERN = /^(o[13](-mini)?|deepseek-r|qwq|qvq|reasoner)/i;
 
 interface ContentPart {
   type?: string;
@@ -66,7 +67,7 @@ function isReasoningModel(model: string): boolean {
   );
 }
 
-function extractMessageContent(message?: ChatCompletionMessage): string {
+function extractMessageContent(message?: ChatCompletionMessage, reasoning = false): string {
   const raw = message?.content;
   if (typeof raw === 'string') {
     const trimmed = raw.trim();
@@ -84,11 +85,13 @@ function extractMessageContent(message?: ChatCompletionMessage): string {
     }
   }
 
-  const reasoning = message?.reasoning_content?.trim();
+  // 推理模型的 reasoning_content 是思维过程，不是最终答案，不应作为 content 返回；
+  // 仅对非推理模型保留此回退（个别非标准接口会把答案放在该字段）
   if (reasoning) {
-    return reasoning;
+    return '';
   }
-  return '';
+  const fallback = message?.reasoning_content?.trim();
+  return fallback ?? '';
 }
 
 function buildChatRequestBody(
@@ -98,7 +101,8 @@ function buildChatRequestBody(
   maxTokens: number,
 ): Record<string, unknown> {
   const reasoning = isReasoningModel(config.model);
-  const tokenBudget = reasoning ? Math.round(maxTokens * 2.5) : maxTokens;
+  // 推理模型会先用 reasoning 吃掉大量 token，需要 4x 预算才能保证最终 content 产出
+  const tokenBudget = reasoning ? Math.round(maxTokens * 4) : maxTokens;
 
   const body: Record<string, unknown> = {
     model: config.model,
@@ -127,6 +131,7 @@ async function callChatCompletion(
   allowRetry = true,
 ): Promise<string> {
   const baseUrl = config.baseUrl.replace(/\/$/, '');
+  const reasoning = isReasoningModel(config.model);
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -149,21 +154,34 @@ async function callChatCompletion(
 
   const choice = data.choices?.[0];
   const finishReason = choice?.finish_reason ?? 'unknown';
+  const content = extractMessageContent(choice?.message, reasoning);
+  const hasReasoning = Boolean(choice?.message?.reasoning_content?.trim());
 
-  if (finishReason === 'length' && allowRetry) {
+  // 推理模型 content 为空但 reasoning 非空：说明推理被截断，没产出最终答案，需要更大预算重试
+  const truncatedByLength = finishReason === 'length';
+  const reasoningTruncated = reasoning && !content && hasReasoning;
+
+  if ((truncatedByLength || reasoningTruncated) && allowRetry) {
     return callChatCompletion(
       config,
       systemPrompt,
       userContent,
-      Math.round(maxTokens * 1.5),
+      Math.round(maxTokens * 2),
       false,
     );
   }
 
-  const content = extractMessageContent(choice?.message);
   if (!content) {
-    console.warn('[AI] 空响应:', JSON.stringify({ finishReason, choices: data.choices?.length ?? 0 }));
-    throw new Error(`AI 返回内容为空（finish_reason: ${finishReason}）`);
+    console.warn('[AI] 空响应:', JSON.stringify({
+      model: config.model,
+      finishReason,
+      reasoning,
+      hasReasoning,
+      choices: data.choices?.length ?? 0,
+    }));
+    throw new Error(
+      `AI 返回内容为空（model: ${config.model}, finish_reason: ${finishReason}）`,
+    );
   }
 
   return content;

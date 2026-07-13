@@ -415,55 +415,41 @@ function formatPodcastPeriodPayload(
   report: PodcastReport,
   compareLabel: string,
 ): string {
-  const contextLines = report.contextMedia?.buckets.map(formatContextBucketLine).join('\n') ?? '暂无';
+  const contextLines = report.contextMedia?.buckets
+    .slice(0, 3)
+    .map((bucket) => `${bucket.label} ${formatDuration(bucket.totalDurationMs)}(${bucket.segmentCount}段/${bucket.trackCount}集)`)
+    .join('，') ?? '暂无';
+
   const sceneLines = report.mediaScenes?.scenes
-    .map((scene) => `- ${scene.label}：${formatDuration(scene.durationMs)}（${scene.apps.join('、')}）`)
-    .join('\n') ?? '暂无';
+    .slice(0, 4)
+    .map((scene) => `${scene.label} ${formatDuration(scene.durationMs)}`)
+    .join('，') ?? '暂无';
 
   const titleLines = report.topTitles
-    .slice(0, 8)
-    .map((item) => `- ${item.appLabel} ${item.title}：${formatDuration(item.durationMs)}（${item.playCount} 次）`)
-    .join('\n');
+    .slice(0, 5)
+    .map((item) => `${item.appLabel}《${item.title}》${formatDuration(item.durationMs)}`)
+    .join('，');
 
   const dayLines = report.weekDays
     .filter((day) => day.listeningMs > 0)
-    .map((day) => `- ${formatDisplayDate(day.date)}：${formatDuration(day.listeningMs)}，${day.segmentCount} 段`)
-    .join('\n');
+    .map((day) => `${formatDisplayDate(day.date)} ${formatDuration(day.listeningMs)}`)
+    .join('，');
 
   const trendLine = report.weekTrendPercent !== null
-    ? `较${compareLabel}总量变化约 ${report.weekTrendPercent > 0 ? '+' : ''}${report.weekTrendPercent}%`
-    : `暂无足够${compareLabel}数据做对比`;
+    ? `较${compareLabel}${report.weekTrendPercent > 0 ? '+' : ''}${report.weekTrendPercent}%`
+    : `无${compareLabel}对比`;
 
   const habitLines = report.sceneHabits.length > 0
-    ? report.sceneHabits.map((habit) => `- ${habit}`).join('\n')
+    ? report.sceneHabits.slice(0, 2).join('；')
     : '样本不足';
 
-  return `统计区间：${rangeLabel}
-
-## ${periodLabel}收听概览
-- 总收听：${formatDuration(report.totalListeningMs)}
-- 播放段数：${formatMediaSegmentCountLabel(report.segmentCount, report.totalPauseCount)}，约 ${report.trackCount} 集
-- 伴随率：${report.companion?.companionRatePercent ?? '—'}%
-- 主动打开播放器：约 ${report.foregroundOpenCount} 次
-- 高峰时段：${report.peakHourLabel ?? '暂无'}
-- 有收听的天数：${report.weekActiveDays}/${report.weekDays.length}
-- 日均（有收听日）：${formatDuration(report.weekAvgMs)}
-- ${trendLine}
-
-## 收听场景（行进/步行/陪伴）
-${contextLines}
-
-## 生活时段分布
-${sceneLines}
-
-## 主要节目
-${titleLines || '暂无标题信息'}
-
-## 逐日分布
-${dayLines || '暂无'}
-
-## 场景习惯（规则推断）
-${habitLines}`;
+  return `区间：${rangeLabel}
+总收听 ${formatDuration(report.totalListeningMs)}｜${report.segmentCount}段 约${report.trackCount}集｜伴随率${report.companion?.companionRatePercent ?? '—'}%｜主动打开${report.foregroundOpenCount}次｜高峰${report.peakHourLabel ?? '无'}｜${report.weekActiveDays}/${report.weekDays.length}天｜${trendLine}
+场景：${contextLines}
+时段：${sceneLines}
+节目：${titleLines || '无标题'}
+逐日：${dayLines || '无'}
+习惯：${habitLines}`;
 }
 
 /** @deprecated 仅保留兼容，AI 已改用周/月 payload */

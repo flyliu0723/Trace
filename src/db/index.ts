@@ -21,6 +21,12 @@ export {
   getAiConfig,
   saveAiConfig,
   isAiConfigured,
+  getAiAutoDailyEnabled,
+  setAiAutoDailyEnabled,
+  getAiAutoDailyLastAttempt,
+  setAiAutoDailyLastAttempt,
+  getAchievementsSeenAt,
+  setAchievementsSeenAt,
   getSetting,
   setSetting,
   DEFAULT_AI_BASE_URL,
@@ -39,3 +45,14 @@ export {
 export type { SummaryType } from './summaryRepository';
 export type { SyncLogEntry, SyncLogKind } from './syncLogRepository';
 export { getLastSyncLog, getRecentSyncLogs, saveSyncLog } from './syncLogRepository';
+export {
+  getUnlockedAchievements,
+  getLatestByRule,
+  getFirstByRule,
+  getUnlockCountByRule,
+  hasUnlockedRule,
+  hasUnlockedRuleOnDate,
+  recordUnlock,
+  getLatestUnlockPerRule,
+} from './achievementRepository';
+export type { StoredAchievement } from './achievementRepository';

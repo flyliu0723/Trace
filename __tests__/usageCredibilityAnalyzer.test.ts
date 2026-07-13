@@ -61,4 +61,19 @@ describe('usageCredibilityAnalyzer', () => {
     expect(hint).toContain('系统');
     expect(hint).toContain('90%');
   });
+
+  it('采集高于系统时不显示超过 100% 的覆盖率', () => {
+    const hint = formatDualDurationHint({
+      collectedMs: 5_000_000,
+      systemMs: 4_000_000,
+      ratio: 1.25,
+      level: 'good',
+    });
+    expect(hint).toContain('采集略高于系统');
+    expect(hint).not.toContain('125%');
+
+    const summary = formatCredibilitySummary(5_000_000, 4_000_000, 1.25, 'good');
+    expect(summary).toContain('采集略高于系统');
+    expect(summary).not.toContain('125%');
+  });
 });
